@@ -39,6 +39,18 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
     }
   }, [footprint]);
 
+  // Keyboard accessibility: press Escape to dismiss the sidebar
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !footprint) return null;
 
   const handleSaveCaption = () => {
@@ -76,7 +88,11 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${footprint.coordinates.latitude},${footprint.coordinates.longitude}`;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900/95 backdrop-blur-xl border-l border-stone-800 text-stone-200 shadow-2xl flex flex-col transition-all duration-300 ease-out">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900/95 backdrop-blur-xl border-l border-stone-800 text-stone-200 shadow-2xl flex flex-col transition-all duration-300 ease-out"
+    >
       {/* Header Bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800/80 bg-stone-900/40">
         <div className="flex items-center space-x-2">

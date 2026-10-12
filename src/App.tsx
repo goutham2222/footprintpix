@@ -142,6 +142,7 @@ export function App() {
 
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
+    setSelectedFootprintId(null);
   };
 
   const handleUpdateCaption = (id: string, newCaption: string) => {
@@ -252,6 +253,7 @@ export function App() {
           selectionTrigger={selectionTrigger}
           isDrawerOpen={isDrawerOpen}
           onSelectFootprint={handleSelectFootprint}
+          onDismissSelection={handleCloseDrawer}
           isPickingLocation={isPickingLocationOnMap}
           onLocationPicked={handleLocationPickedOnMap}
         />

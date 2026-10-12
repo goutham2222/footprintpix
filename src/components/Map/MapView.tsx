@@ -10,6 +10,7 @@ interface MapViewProps {
   selectionTrigger?: number;
   isDrawerOpen?: boolean;
   onSelectFootprint: (id: string) => void;
+  onDismissSelection?: () => void;
   isPickingLocation: boolean;
   onLocationPicked: (coords: GeoCoordinates) => void;
 }
@@ -20,6 +21,7 @@ export const MapView: React.FC<MapViewProps> = ({
   selectionTrigger = 0,
   isDrawerOpen = false,
   onSelectFootprint,
+  onDismissSelection,
   isPickingLocation,
   onLocationPicked
 }) => {
@@ -65,7 +67,7 @@ export const MapView: React.FC<MapViewProps> = ({
     };
   }, []);
 
-  // Handle map click when user is manually picking location
+  // Handle map click: either manually picking location or dismissing active selection
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -76,6 +78,8 @@ export const MapView: React.FC<MapViewProps> = ({
           latitude: e.latlng.lat,
           longitude: e.latlng.lng
         });
+      } else if (onDismissSelection) {
+        onDismissSelection();
       }
     };
 
@@ -83,7 +87,7 @@ export const MapView: React.FC<MapViewProps> = ({
     return () => {
       map.off('click', handleMapClick);
     };
-  }, [isPickingLocation, onLocationPicked]);
+  }, [isPickingLocation, onLocationPicked, onDismissSelection]);
 
   // Render Markers
   useEffect(() => {

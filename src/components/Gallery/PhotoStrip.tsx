@@ -16,7 +16,11 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
   if (footprints.length === 0) return null;
 
   return (
-    <div className="absolute bottom-6 left-6 right-20 sm:right-28 z-20 pointer-events-none">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className="absolute bottom-6 left-6 right-20 sm:right-28 z-20 pointer-events-none"
+    >
       <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-none pointer-events-auto p-1.5 max-w-full">
         {footprints.map((fp) => {
           const isSelected = fp.id === selectedFootprintId;
@@ -30,7 +34,10 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
           return (
             <button
               key={fp.id}
-              onClick={() => onSelect(fp.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(fp.id);
+              }}
               className={`group relative shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all duration-300 text-left bg-stone-900 shadow-xl ${
                 isSelected
                   ? 'border-orange-500 ring-4 ring-orange-500/30 scale-105'
