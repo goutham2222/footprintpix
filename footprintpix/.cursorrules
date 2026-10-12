@@ -1,0 +1,38 @@
+# FootprintPix Project Rules
+
+## Universal Error & Defect Logging Protocol
+- The agent must maintain `DEBUG_LOG.md` in the project root as a permanent record of all bugs, compile errors, runtime issues, and UI/UX defects resolved.
+- Whenever an issue is identified and fixed, append a new entry to `DEBUG_LOG.md` sequentially (`[ERR-001]`, `[ERR-002]`, etc.) using this exact structure:
+  - `[ERR-XXX] <Descriptive Title>`
+    - **Timestamp:** <Current Date Phase or>
+    - **Component:** <File involved path(s)>
+    - **Technical Issue:** <Technical behavior broken cause error or root>
+    - **Resolution:** <Exact / code fix implemented styles>
+    - **In Plain English:** <Clear, accessible and broke fixed how it of summary was what>
+- Never overwrite existing entries; always append.
+
+## 1. Local-First File Persistence & User Review Gate (CRITICAL)
+- **Save Before Stage:** Always ensure all edits are completely flushed and saved to local disk before running any verification, build checks, or git operations.
+- **Do Not Prematurely Commit:** The agent MUST NOT stage (`git add`), commit (`git commit`), or push (`git push`) changes autonomously while generating solutions.
+- **Strict User Review Gate:** All code and documentation changes must remain pending in the working tree until the user reviews and clicks "Accept All".
+- Only after the user confirms acceptance or explicitly directs git progression should verification, staging, committing, and pushing proceed.
+
+## 2. Commit Message Prefixes & Conventions
+All commits must strictly use one of the following conventional prefixes based on the nature of the change:
+- `feat:` — New functional features, APIs, components, or major capabilities.
+- `fix:` — Bug fixes, syntax corrections, type repairs, runtime error resolutions.
+- `tweak:` — Small layout, styling, configuration adjustments, or non-breaking refinements.
+- `copy:` — Text updates, labels, typography revisions, or copywriting changes.
+- `docs:` — Documentation additions or updates in README, guides, or markdown docs.
+
+## 3. Git Lifecycle Execution (Post-Acceptance Only)
+- Once changes are accepted by the user:
+  - Stage modified files with `git add .` (strictly respecting `.gitignore` exclusions).
+  - Create atomic, descriptive commit messages adhering to the conventional prefixes above.
+  - Push directly to the remote branch (`git push origin <branch>`).
+
+## 4. Code Quality & Standards
+- TypeScript / Next.js / Vite: Strict typechecking (`strict: true`), avoid `any`, ensure clean production builds without warnings.
+- Clean Architecture: Maintain a decoupled structure separating UI components, map state management, and EXIF extraction utilities.
+- Ignore Sensitive / Ephemeral Files: Ensure `.gitignore` ignores `node_modules/`, `.next/`, `dist/`, `.env*`, and local temporary artifacts.
+

@@ -1,0 +1,142 @@
+import React, { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { PhotoFootprint, GeoCoordinates } from '../../types/footprint';
+import { createFootprintIcon } from './FootprintMarker';
+
+interface MapViewProps {
+  footprints: PhotoFootprint[];
+  selectedFootprintId: string | null;
+  onSelectFootprint: (id: string) => void;
+  isPickingLocation: boolean;
+  onLocationPicked: (coords: GeoCoordinates) => void;
+}
+
+export const MapView: React.FC<MapViewProps> = ({
+  footprints,
+  selectedFootprintId,
+  onSelectFootprint,
+  isPickingLocation,
+  onLocationPicked
+}) => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Initialize Map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+    // Default view: broad world / travel viewpoint
+    const map = L.map(mapContainerRef.current, {
+      center: [20, 0],
+      zoom: 2.5,
+      minZoom: 2,
+      maxZoom: 19,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    // Free, public standard OpenStreetMap tiles requiring no API key
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Zoom control in bottom right for minimalist layout
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    const markersGroup = L.layerGroup().addTo(map);
+    markersLayerRef.current = markersGroup;
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
+  // Handle map click when user is manually picking location
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      if (isPickingLocation) {
+        onLocationPicked({
+          latitude: e.latlng.lat,
+          longitude: e.latlng.lng
+        });
+      }
+    };
+
+    map.on('click', handleMapClick);
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [isPickingLocation, onLocationPicked]);
+
+  // Render Markers
+  useEffect(() => {
+    const markersGroup = markersLayerRef.current;
+    const map = mapInstanceRef.current;
+    if (!markersGroup || !map) return;
+
+    markersGroup.clearLayers();
+
+    footprints.forEach((fp) => {
+      const isSelected = fp.id === selectedFootprintId;
+      const icon = createFootprintIcon(isSelected, fp.dataUrl);
+
+      const marker = L.marker([fp.coordinates.latitude, fp.coordinates.longitude], {
+        icon,
+        zIndexOffset: isSelected ? 1000 : 100
+      });
+
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        onSelectFootprint(fp.id);
+      });
+
+      marker.addTo(markersGroup);
+    });
+  }, [footprints, selectedFootprintId, onSelectFootprint]);
+
+  // Center on selected footprint
+  useEffect(() => {
+    if (!selectedFootprintId || !mapInstanceRef.current) return;
+    const selected = footprints.find((fp) => fp.id === selectedFootprintId);
+    if (selected) {
+      mapInstanceRef.current.flyTo(
+        [selected.coordinates.latitude, selected.coordinates.longitude],
+        Math.max(mapInstanceRef.current.getZoom(), 8),
+        {
+          duration: 1.2,
+          easeLinearity: 0.25
+        }
+      );
+    }
+  }, [selectedFootprintId, footprints]);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden select-none">
+      <div ref={mapContainerRef} className="w-full h-full z-0 bg-[#e5e3df]" />
+
+      {/* Manual Pinning Overlay Banner */}
+      {isPickingLocation && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <div className="bg-stone-900/90 text-stone-100 backdrop-blur-md px-6 py-3 rounded-full border border-orange-500/50 shadow-2xl flex items-center space-x-3 animate-bounce">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+            </span>
+            <span className="text-sm font-medium tracking-wide">
+              Click anywhere on the map to place your footprint
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+

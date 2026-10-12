@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom leaflet tweaks for minimalist styling */
+.leaflet-container {
+  font-family: inherit;
+  outline: none !important;
+}
+
+.custom-footprint-pin {
+  background: transparent;
+  border: none;
+}
+
+/* Hide scrollbars for clean gallery horizontal scroll */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
