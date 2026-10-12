@@ -42,14 +42,21 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
                 alt={fp.filename}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
               <div className="absolute bottom-1.5 left-1.5 right-1.5 flex flex-col justify-end text-white">
-                <span className="text-[10px] font-medium truncate leading-tight drop-shadow">
-                  {fp.caption || fp.filename}
-                </span>
+                {fp.caption ? (
+                  <span className="text-[10px] font-medium truncate leading-tight drop-shadow">
+                    {fp.caption}
+                  </span>
+                ) : fp.locationName ? (
+                  <span className="text-[10px] font-medium truncate leading-tight drop-shadow text-stone-200">
+                    {fp.locationName}
+                  </span>
+                ) : null}
+
                 {dateStr && (
-                  <span className="text-[9px] text-stone-300 flex items-center space-x-0.5 mt-0.5 opacity-80">
+                  <span className="text-[9px] text-stone-300 flex items-center space-x-0.5 mt-0.5 opacity-90 drop-shadow">
                     <Calendar className="w-2.5 h-2.5" />
                     <span>{dateStr}</span>
                   </span>
