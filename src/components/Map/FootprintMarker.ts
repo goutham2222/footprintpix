@@ -8,15 +8,19 @@ import L from 'leaflet';
  * - iconAnchor: [18, 44] (tip points precisely at coordinate)
  * - Pure SVG vector construction in brand accent orange (#f97316)
  * - Crisp white footprint icon in top circle
- * - Drop shadow & subtle selection glow without unbounded elements
+ * - Active selection: scale(1.2) from bottom tip anchor, bright white outline, and pulse ring
  */
 export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
   const width = 36;
   const height = 44;
 
-  const pinColor = isSelected ? '#ea580c' : '#f97316'; // orange-600 when selected, orange-500 default
+  const pinColor = isSelected ? '#ea580c' : '#f97316';
   const strokeColor = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.9)';
-  const strokeWidth = isSelected ? 2.5 : 1.8;
+  const strokeWidth = isSelected ? 2.8 : 1.8;
+
+  const pulseRipple = isSelected
+    ? `<div class="footprint-pin-pulse"></div>`
+    : '';
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="${width}" height="${height}" style="display: block; overflow: visible;">
@@ -25,8 +29,8 @@ export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
           <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.4" />
         </filter>
         ${isSelected ? `
-        <filter id="pin-glow" x="-40%" y="-30%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#f97316" flood-opacity="0.8" />
+        <filter id="pin-glow" x="-50%" y="-40%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#fb923c" flood-opacity="0.95" />
         </filter>` : ''}
       </defs>
 
@@ -41,7 +45,7 @@ export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
         />
 
         <!-- Inner circular badge background -->
-        <circle cx="18" cy="15" r="9.5" fill="rgba(0, 0, 0, 0.12)" />
+        <circle cx="18" cy="15" r="9.5" fill="rgba(0, 0, 0, 0.15)" />
 
         <!-- Crisp White Footprint Icon (Sole + Toes) -->
         <g fill="#ffffff" transform="translate(11, 7.5) scale(0.6)">
@@ -60,8 +64,19 @@ export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
     </svg>
   `;
 
+  const innerStyle = [
+    `width: ${width}px`,
+    `height: ${height}px`,
+    'position: relative',
+    'pointer-events: auto',
+    'cursor: pointer',
+    'transform-origin: 18px 44px',
+    'transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+    isSelected ? 'transform: scale(1.22)' : 'transform: scale(1)'
+  ].join('; ');
+
   return L.divIcon({
-    html: `<div style="width: ${width}px; height: ${height}px; pointer-events: auto; cursor: pointer;">${svg}</div>`,
+    html: `<div class="footprint-pin-inner ${isSelected ? 'is-active' : ''}" style="${innerStyle}">${pulseRipple}${svg}</div>`,
     className: 'footprint-marker-pin',
     iconSize: [width, height],
     iconAnchor: [18, 44]

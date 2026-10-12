@@ -26,6 +26,35 @@ html, body, #root {
   overflow: visible !important;
 }
 
+.footprint-pin-inner:not(.is-active):hover {
+  transform: scale(1.1) !important;
+}
+
+@keyframes footprint-pulse-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+  }
+}
+
+.footprint-pin-pulse {
+  position: absolute;
+  top: 15px;
+  left: 18px;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: rgba(249, 115, 22, 0.55);
+  border: 2px solid #ffffff;
+  pointer-events: none;
+  z-index: -1;
+  animation: footprint-pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
 /* Hide scrollbars for clean gallery horizontal scroll */
 .scrollbar-none::-webkit-scrollbar {
   display: none;

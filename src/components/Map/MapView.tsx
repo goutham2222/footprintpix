@@ -7,6 +7,8 @@ import { createFootprintIcon } from './FootprintMarker';
 interface MapViewProps {
   footprints: PhotoFootprint[];
   selectedFootprintId: string | null;
+  selectionTrigger?: number;
+  isDrawerOpen?: boolean;
   onSelectFootprint: (id: string) => void;
   isPickingLocation: boolean;
   onLocationPicked: (coords: GeoCoordinates) => void;
@@ -15,6 +17,8 @@ interface MapViewProps {
 export const MapView: React.FC<MapViewProps> = ({
   footprints,
   selectedFootprintId,
+  selectionTrigger = 0,
+  isDrawerOpen = false,
   onSelectFootprint,
   isPickingLocation,
   onLocationPicked
@@ -107,21 +111,43 @@ export const MapView: React.FC<MapViewProps> = ({
     });
   }, [footprints, selectedFootprintId, onSelectFootprint]);
 
-  // Center on selected footprint
+  // Smooth Cinematic Zoom (flyTo) & Side Drawer Offset
   useEffect(() => {
-    if (!selectedFootprintId || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    if (!selectedFootprintId || !map) return;
+
     const selected = footprints.find((fp) => fp.id === selectedFootprintId);
-    if (selected) {
-      mapInstanceRef.current.flyTo(
-        [selected.coordinates.latitude, selected.coordinates.longitude],
-        Math.max(mapInstanceRef.current.getZoom(), 8),
-        {
-          duration: 1.2,
-          easeLinearity: 0.25
-        }
-      );
+    if (!selected) return;
+
+    // Target zoom 14, or keep current zoom if already zoomed in closer (> 14)
+    const currentZoom = map.getZoom();
+    const targetZoom = Math.max(currentZoom, 14);
+
+    // Calculate offset center in pixel space at targetZoom so the pin is centered
+    // in the unobstructed left viewport when the side drawer is open (~448px max-w-md)
+    const pinLatLng = L.latLng(
+      selected.coordinates.latitude,
+      selected.coordinates.longitude
+    );
+
+    let targetCenter = pinLatLng;
+    const viewportWidth = map.getSize().x;
+
+    // Apply horizontal offset on desktop/tablet screens where drawer occupies right side
+    if (isDrawerOpen && viewportWidth > 640) {
+      const drawerWidth = Math.min(448, viewportWidth * 0.45);
+      const horizontalOffsetPx = drawerWidth / 2;
+      const pinPoint = map.project(pinLatLng, targetZoom);
+      // Shift camera center to the right so the pin sits to the left in the open area
+      const offsetPoint = L.point(pinPoint.x + horizontalOffsetPx, pinPoint.y);
+      targetCenter = map.unproject(offsetPoint, targetZoom);
     }
-  }, [selectedFootprintId, footprints]);
+
+    map.flyTo(targetCenter, targetZoom, {
+      duration: 1.2,
+      easeLinearity: 0.25
+    });
+  }, [selectedFootprintId, selectionTrigger]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">

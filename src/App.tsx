@@ -19,6 +19,7 @@ import { createSampleFootprints } from './utils/sampleData';
 export function App() {
   const [footprints, setFootprints] = useState<PhotoFootprint[]>([]);
   const [selectedFootprintId, setSelectedFootprintId] = useState<string | null>(null);
+  const [selectionTrigger, setSelectionTrigger] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -136,6 +137,7 @@ export function App() {
   const handleSelectFootprint = (id: string) => {
     setSelectedFootprintId(id);
     setIsDrawerOpen(true);
+    setSelectionTrigger((prev) => prev + 1);
   };
 
   const handleCloseDrawer = () => {
@@ -247,6 +249,8 @@ export function App() {
         <MapView
           footprints={footprints}
           selectedFootprintId={selectedFootprintId}
+          selectionTrigger={selectionTrigger}
+          isDrawerOpen={isDrawerOpen}
           onSelectFootprint={handleSelectFootprint}
           isPickingLocation={isPickingLocationOnMap}
           onLocationPicked={handleLocationPickedOnMap}
