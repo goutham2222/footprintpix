@@ -31,8 +31,13 @@ export const MapView: React.FC<MapViewProps> = ({
     const map = L.map(mapContainerRef.current, {
       center: [20, 0],
       zoom: 2.5,
-      minZoom: 2,
+      minZoom: 2.5,
       maxZoom: 19,
+      maxBounds: [
+        [-85, -180],
+        [85, 180]
+      ],
+      maxBoundsViscosity: 1.0,
       zoomControl: false,
       attributionControl: false
     });
@@ -120,7 +125,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
-      <div ref={mapContainerRef} className="w-full h-full z-0 bg-[#e5e3df]" />
+      <div ref={mapContainerRef} className="w-full h-full z-0 bg-[#aad3df]" />
 
       {/* Manual Pinning Overlay Banner */}
       {isPickingLocation && (

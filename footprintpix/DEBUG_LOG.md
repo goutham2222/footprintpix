@@ -39,3 +39,12 @@ Permanent log of all bugs, compile errors, runtime issues, and UI/UX defects res
 - **In Plain English:** TypeScript's language server in the editor did not recognize `.css` files as valid modules to import in code. We created the standard Vite environment declaration file (`vite-env.d.ts`) so the editor and TypeScript cleanly recognize CSS asset imports.
 
 ---
+
+[ERR-005] Infinite Gray Margin Over-panning and Viewport Void on Map
+- **Timestamp:** Phase 1 Map UX Hardening (2026-10-12)
+- **Component:** `src/components/Map/MapView.tsx`, `src/index.css`
+- **Technical Issue:** Leaflet map allowed unrestricted vertical panning beyond latitude extremes into empty gray space, and zoom out below viewport height revealed background gray borders.
+- **Resolution:** Added `maxBounds: [[-85, -180], [85, 180]]` and `maxBoundsViscosity: 1.0` to lock panning strictly to the world map boundaries. Set `minZoom: 2.5` to prevent zooming out into gray letterboxing, and styled `.leaflet-container` background to `#aad3df` matching OpenStreetMap's ocean water tone.
+- **In Plain English:** Users were able to drag the world map too far up or down into an empty gray void. We clamped the map boundaries so the camera cannot drag past the north or south poles, raised the minimum zoom level, and colored the canvas background to match the ocean so no gray margins ever appear.
+
+---
