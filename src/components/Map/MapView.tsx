@@ -91,7 +91,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
     footprints.forEach((fp) => {
       const isSelected = fp.id === selectedFootprintId;
-      const icon = createFootprintIcon(isSelected, fp.dataUrl);
+      const icon = createFootprintIcon(isSelected);
 
       const marker = L.marker([fp.coordinates.latitude, fp.coordinates.longitude], {
         icon,

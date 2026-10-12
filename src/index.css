@@ -16,9 +16,14 @@ html, body, #root {
   background-color: #aad3df !important;
 }
 
-.custom-footprint-pin {
-  background: transparent;
-  border: none;
+.custom-footprint-pin,
+.footprint-marker-pin {
+  background: transparent !important;
+  border: none !important;
+  display: block !important;
+  width: 36px !important;
+  height: 44px !important;
+  overflow: visible !important;
 }
 
 /* Hide scrollbars for clean gallery horizontal scroll */

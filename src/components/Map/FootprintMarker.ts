@@ -1,58 +1,69 @@
 import L from 'leaflet';
 
 /**
- * Generates an elegant Footprint Pin marker icon using an embedded SVG.
- * Clean footprint design with soft ambient shadow and terracotta branding.
+ * Generates a crisp, fixed-size vector teardrop Footprint Pin marker.
+ *
+ * Specifications:
+ * - Dimensions: Fixed width: 36px, height: 44px
+ * - iconAnchor: [18, 44] (tip points precisely at coordinate)
+ * - Pure SVG vector construction in brand accent orange (#f97316)
+ * - Crisp white footprint icon in top circle
+ * - Drop shadow & subtle selection glow without unbounded elements
  */
-export function createFootprintIcon(isSelected: boolean = false, thumbnailSrc?: string): L.DivIcon {
-  const size = isSelected ? 48 : 40;
-  const pulseClass = isSelected ? 'ring-4 ring-orange-400 ring-offset-2 ring-offset-black scale-110' : 'hover:scale-110';
-  
-  // Custom SVG footprint icon
-  const footprintSvg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" class="text-white drop-shadow-sm">
-      <!-- Main sole pad -->
-      <path d="M12.2 11.2c-1.8.3-3.2 1.9-3.2 3.8 0 2.2 1.8 4 4 4s3.7-1.4 3.9-3.3c.3-2.3-2.4-4.9-4.7-4.5z" />
-      <path d="M11.8 19c-1.2 0-2.2.9-2.2 2s1 2 2.2 2 2.2-.9 2.2-2-1-2-2.2-2z" opacity="0.9" />
-      <!-- Toes -->
-      <circle cx="8" cy="9.5" r="1.1" />
-      <circle cx="10.2" cy="7.2" r="1.3" />
-      <circle cx="12.8" cy="6.2" r="1.5" />
-      <circle cx="15.6" cy="6.8" r="1.3" />
-      <circle cx="17.8" cy="8.8" r="1.1" />
+export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
+  const width = 36;
+  const height = 44;
+
+  const pinColor = isSelected ? '#ea580c' : '#f97316'; // orange-600 when selected, orange-500 default
+  const strokeColor = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.9)';
+  const strokeWidth = isSelected ? 2.5 : 1.8;
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="${width}" height="${height}" style="display: block; overflow: visible;">
+      <defs>
+        <filter id="pin-shadow" x="-30%" y="-20%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.4" />
+        </filter>
+        ${isSelected ? `
+        <filter id="pin-glow" x="-40%" y="-30%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#f97316" flood-opacity="0.8" />
+        </filter>` : ''}
+      </defs>
+
+      <!-- Pin Teardrop Body -->
+      <g filter="${isSelected ? 'url(#pin-glow)' : 'url(#pin-shadow)'}">
+        <path
+          d="M 18 42 C 16.5 37 4 23 4 15 C 4 7.268 10.268 1 18 1 C 25.732 1 32 7.268 32 15 C 32 23 19.5 37 18 42 Z"
+          fill="${pinColor}"
+          stroke="${strokeColor}"
+          stroke-width="${strokeWidth}"
+          stroke-linejoin="round"
+        />
+
+        <!-- Inner circular badge background -->
+        <circle cx="18" cy="15" r="9.5" fill="rgba(0, 0, 0, 0.12)" />
+
+        <!-- Crisp White Footprint Icon (Sole + Toes) -->
+        <g fill="#ffffff" transform="translate(11, 7.5) scale(0.6)">
+          <!-- Main sole ball -->
+          <path d="M12.2 11.2c-1.8.3-3.2 1.9-3.2 3.8 0 2.2 1.8 4 4 4s3.7-1.4 3.9-3.3c.3-2.3-2.4-4.9-4.7-4.5z" />
+          <!-- Heel -->
+          <ellipse cx="11.8" cy="20" rx="2.4" ry="2.2" />
+          <!-- Toes -->
+          <circle cx="7.8" cy="9.2" r="1.2" />
+          <circle cx="10.2" cy="6.8" r="1.3" />
+          <circle cx="12.8" cy="5.8" r="1.5" />
+          <circle cx="15.6" cy="6.4" r="1.3" />
+          <circle cx="17.8" cy="8.4" r="1.1" />
+        </g>
+      </g>
     </svg>
   `;
 
-  const html = `
-    <div class="group relative flex items-center justify-center transition-all duration-300 transform -translate-x-1/2 -translate-y-full cursor-pointer">
-      <!-- Marker Badge Container -->
-      <div class="relative w-[${size}px] h-[${size}px] rounded-full bg-gradient-to-tr from-stone-900 to-stone-800 border-2 ${isSelected ? 'border-orange-500 shadow-orange-500/40 shadow-xl' : 'border-stone-400/30 shadow-2xl'} flex items-center justify-center overflow-hidden transition-all duration-300 ${pulseClass}">
-        ${thumbnailSrc ? `
-          <img src="${thumbnailSrc}" alt="thumb" class="w-full h-full object-cover transition-transform group-hover:scale-110 opacity-90 group-hover:opacity-100" />
-          <div class="absolute inset-0 bg-stone-950/25 group-hover:bg-transparent transition-colors"></div>
-          <div class="absolute bottom-1 right-1 w-4 h-4 bg-orange-600 rounded-full flex items-center justify-center border border-white/60 shadow">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="9" height="9" fill="white">
-              <path d="M12 11c-1.8.3-3.2 1.9-3.2 3.8 0 2.2 1.8 4 4 4s3.7-1.4 3.9-3.3c.3-2.3-2.4-4.9-4.7-4.5z"/>
-              <circle cx="12" cy="7" r="1.5"/>
-            </svg>
-          </div>
-        ` : `
-          <div class="w-full h-full bg-gradient-to-br from-amber-600 via-orange-600 to-rose-600 flex items-center justify-center">
-            ${footprintSvg}
-          </div>
-        `}
-      </div>
-
-      <!-- Marker Pointer Tail / Arrow -->
-      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 ${isSelected ? 'bg-orange-500' : 'bg-stone-800'} border-r border-b ${isSelected ? 'border-orange-500' : 'border-stone-700/50'}"></div>
-    </div>
-  `;
-
   return L.divIcon({
-    html,
-    className: 'custom-footprint-pin',
-    iconSize: [size, size + 8],
-    iconAnchor: [size / 2, size + 8]
+    html: `<div style="width: ${width}px; height: ${height}px; pointer-events: auto; cursor: pointer;">${svg}</div>`,
+    className: 'footprint-marker-pin',
+    iconSize: [width, height],
+    iconAnchor: [18, 44]
   });
 }
-
