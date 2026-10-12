@@ -3,13 +3,12 @@ import {
   X, 
   Calendar, 
   MapPin, 
-  Camera, 
-  Aperture, 
   Clock, 
   Trash2, 
-  ExternalLink,
-  Edit3,
-  Check
+  ExternalLink, 
+  Edit3, 
+  Check, 
+  Copy 
 } from 'lucide-react';
 import { PhotoFootprint } from '../../types/footprint';
 
@@ -32,6 +31,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
 }) => {
   const [caption, setCaption] = useState('');
   const [isSavedNotice, setIsSavedNotice] = useState(false);
+  const [isCopiedCoords, setIsCopiedCoords] = useState(false);
 
   useEffect(() => {
     if (footprint) {
@@ -45,6 +45,17 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
     onUpdateCaption(footprint.id, caption);
     setIsSavedNotice(true);
     setTimeout(() => setIsSavedNotice(false), 2000);
+  };
+
+  const handleCopyCoords = async () => {
+    const coordString = `${footprint.coordinates.latitude.toFixed(4)}, ${footprint.coordinates.longitude.toFixed(4)}`;
+    try {
+      await navigator.clipboard.writeText(coordString);
+      setIsCopiedCoords(true);
+      setTimeout(() => setIsCopiedCoords(false), 2000);
+    } catch (err) {
+      console.warn('Could not copy coordinates:', err);
+    }
   };
 
   const formattedDate = footprint.exif.dateTimeOriginal
@@ -61,11 +72,6 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
         month: 'short',
         day: 'numeric'
       });
-
-  const hasExifCamera = footprint.exif.cameraMake || footprint.exif.cameraModel;
-  const cameraLabel = [footprint.exif.cameraMake, footprint.exif.cameraModel]
-    .filter(Boolean)
-    .join(' ');
 
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${footprint.coordinates.latitude},${footprint.coordinates.longitude}`;
 
@@ -90,14 +96,14 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
 
       {/* Main Scrollable Body */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Photo Preview Container */}
-        <div className="relative group rounded-xl overflow-hidden bg-stone-950 border border-stone-800/80 shadow-inner">
+        {/* Aspect-Ratio Photo Preview Container (Fully visible without cut-off) */}
+        <div className="relative group rounded-2xl overflow-hidden bg-stone-950/80 border border-stone-800/80 shadow-2xl flex items-center justify-center aspect-[4/3]">
           <img
             src={footprint.dataUrl}
             alt={footprint.filename}
-            className="w-full h-auto max-h-72 object-contain mx-auto"
+            className="w-full h-full object-contain p-1 rounded-2xl"
           />
-          <div className="absolute top-2 right-2 px-2 py-0.5 rounded text-[11px] bg-black/60 backdrop-blur-md text-stone-300 font-mono">
+          <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-[10px] bg-black/60 backdrop-blur-md text-stone-300 font-mono border border-white/10">
             {(footprint.size / (1024 * 1024)).toFixed(2)} MB
           </div>
         </div>
@@ -123,24 +129,24 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
               onBlur={handleSaveCaption}
               placeholder="Add your reflections, travel memories, or location highlights here..."
               rows={3}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-stone-950/60 border border-stone-800 focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/50 text-stone-200 placeholder-stone-500 text-sm resize-none outline-none transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950/60 border border-stone-800 focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/50 text-stone-200 placeholder-stone-500 text-sm resize-none outline-none transition-all"
             />
           </div>
         </div>
 
-        {/* GPS Location Data Card */}
+        {/* Clean Coordinates Card */}
         <div className="p-4 rounded-xl bg-stone-950/40 border border-stone-800/80 space-y-3">
           <div className="flex items-center justify-between text-xs text-stone-400">
             <span className="font-semibold uppercase tracking-wider flex items-center space-x-1.5">
               <MapPin className="w-3.5 h-3.5 text-orange-400" />
-              <span>Coordinates</span>
+              <span>Location & Coordinates</span>
             </span>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => onRelocate(footprint)}
                 className="text-orange-400 hover:text-orange-300 underline text-xs transition-colors"
               >
-                Reposition Pin
+                Reposition
               </button>
               <a
                 href={googleMapsUrl}
@@ -154,24 +160,40 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-sm font-mono bg-stone-900/60 p-2.5 rounded-lg border border-stone-800/50">
-            <div>
-              <div className="text-[10px] text-stone-500 uppercase">Latitude</div>
-              <div className="text-stone-200 font-medium">
-                {footprint.coordinates.latitude.toFixed(6)}°
-              </div>
+          {/* Place name if available */}
+          {footprint.locationName && (
+            <div className="text-xs font-medium text-stone-300 truncate">
+              {footprint.locationName}
             </div>
-            <div>
-              <div className="text-[10px] text-stone-500 uppercase">Longitude</div>
-              <div className="text-stone-200 font-medium">
-                {footprint.coordinates.longitude.toFixed(6)}°
-              </div>
+          )}
+
+          {/* Rounded 4-decimal coordinates with copy button */}
+          <div className="flex items-center justify-between bg-stone-900/60 p-2.5 rounded-xl border border-stone-800/60 font-mono text-sm">
+            <div className="flex items-center space-x-3 text-stone-200">
+              <span>{footprint.coordinates.latitude.toFixed(4)}° N</span>
+              <span className="text-stone-600">|</span>
+              <span>{footprint.coordinates.longitude.toFixed(4)}° E</span>
             </div>
+
+            <button
+              onClick={handleCopyCoords}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors flex items-center space-x-1 text-xs"
+              title="Copy coordinates"
+            >
+              {isCopiedCoords ? (
+                <span className="text-emerald-400 flex items-center space-x-1 text-[11px] font-sans">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Copied</span>
+                </span>
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
 
           {!footprint.hasGps && (
-            <div className="text-[11px] text-amber-400/90 bg-amber-950/30 border border-amber-900/40 px-2.5 py-1.5 rounded">
-              ⚠️ Manually pinned (No original GPS in EXIF).
+            <div className="text-[11px] text-amber-400/90 bg-amber-950/30 border border-amber-900/40 px-2.5 py-1.5 rounded-lg">
+              ⚠️ Manually pinned on map (No original GPS in EXIF).
             </div>
           )}
         </div>
@@ -180,55 +202,12 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
         <div className="p-4 rounded-xl bg-stone-950/40 border border-stone-800/80 space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-stone-400 flex items-center space-x-1.5">
             <Calendar className="w-3.5 h-3.5 text-orange-400" />
-            <span>Captured Date</span>
+            <span>Captured Date & Time</span>
           </div>
           <div className="flex items-center space-x-2 text-sm text-stone-300">
             <Clock className="w-4 h-4 text-stone-500" />
             <span>{formattedDate}</span>
           </div>
-        </div>
-
-        {/* Camera & Lens Technical EXIF */}
-        <div className="p-4 rounded-xl bg-stone-950/40 border border-stone-800/80 space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wider text-stone-400 flex items-center space-x-1.5">
-            <Camera className="w-3.5 h-3.5 text-orange-400" />
-            <span>Camera & Optics</span>
-          </div>
-
-          {hasExifCamera ? (
-            <div className="space-y-2 text-xs">
-              <div className="text-stone-200 font-medium text-sm">{cameraLabel}</div>
-              {footprint.exif.lensModel && (
-                <div className="text-stone-400">{footprint.exif.lensModel}</div>
-              )}
-
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-stone-800/60 font-mono text-center">
-                {footprint.exif.focalLength && (
-                  <div className="bg-stone-900/80 p-1.5 rounded">
-                    <span className="text-[10px] text-stone-500 block">Focal</span>
-                    {footprint.exif.focalLength}mm
-                  </div>
-                )}
-                {footprint.exif.fNumber && (
-                  <div className="bg-stone-900/80 p-1.5 rounded">
-                    <span className="text-[10px] text-stone-500 block">Aperture</span>
-                    ƒ/{footprint.exif.fNumber}
-                  </div>
-                )}
-                {footprint.exif.iso && (
-                  <div className="bg-stone-900/80 p-1.5 rounded">
-                    <span className="text-[10px] text-stone-500 block">ISO</span>
-                    {footprint.exif.iso}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-stone-500 italic flex items-center space-x-1.5">
-              <Aperture className="w-3.5 h-3.5" />
-              <span>Camera metadata was not encoded in this image.</span>
-            </p>
-          )}
         </div>
       </div>
 
@@ -252,4 +231,3 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
     </div>
   );
 };
-
