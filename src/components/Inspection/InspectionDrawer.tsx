@@ -8,14 +8,20 @@ import {
   ExternalLink, 
   Edit3, 
   Check, 
-  Copy 
+  Copy,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { PhotoFootprint } from '../../types/footprint';
 
 interface InspectionDrawerProps {
   footprint: PhotoFootprint | null;
+  currentIndex: number;
+  totalCount: number;
   isOpen: boolean;
   onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
   onUpdateCaption: (id: string, caption: string) => void;
   onDeleteFootprint: (id: string) => void;
   onRelocate: (footprint: PhotoFootprint) => void;
@@ -23,8 +29,12 @@ interface InspectionDrawerProps {
 
 export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
   footprint,
+  currentIndex,
+  totalCount,
   isOpen,
   onClose,
+  onPrev,
+  onNext,
   onUpdateCaption,
   onDeleteFootprint,
   onRelocate
@@ -39,17 +49,30 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
     }
   }, [footprint]);
 
-  // Keyboard accessibility: press Escape to dismiss the sidebar
+  // Keyboard accessibility: Escape to close, Left/Right arrows to step through photos
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+
+      // Do not intercept Left/Right arrows when typing inside an input or textarea
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === 'textarea' || activeTag === 'input') return;
+
+      if (e.key === 'ArrowLeft' && totalCount > 1) {
+        e.preventDefault();
+        onPrev();
+      } else if (e.key === 'ArrowRight' && totalCount > 1) {
+        e.preventDefault();
+        onNext();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, totalCount, onClose, onPrev, onNext]);
 
   if (!isOpen || !footprint) return null;
 
@@ -101,13 +124,38 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
             Journey Inspection
           </h2>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-full text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
-          title="Close panel"
-        >
-          <X className="w-5 h-5" />
-        </button>
+
+        <div className="flex items-center space-x-2">
+          {totalCount > 1 && (
+            <div className="flex items-center bg-stone-950/60 border border-stone-800 rounded-lg px-1 py-0.5 mr-1">
+              <button
+                onClick={onPrev}
+                className="p-1 text-stone-400 hover:text-white hover:bg-stone-800 rounded transition-colors"
+                title="Previous footprint (←)"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-[11px] font-mono text-stone-400 px-2 select-none">
+                {currentIndex + 1} / {totalCount}
+              </span>
+              <button
+                onClick={onNext}
+                className="p-1 text-stone-400 hover:text-white hover:bg-stone-800 rounded transition-colors"
+                title="Next footprint (→)"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+            title="Close panel (Esc)"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Main Scrollable Body */}

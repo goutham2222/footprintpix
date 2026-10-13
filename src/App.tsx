@@ -183,7 +183,20 @@ export function App() {
     }
   };
 
-  const selectedFootprint = footprints.find((fp) => fp.id === selectedFootprintId) || null;
+  const selectedIndex = footprints.findIndex((fp) => fp.id === selectedFootprintId);
+  const selectedFootprint = selectedIndex >= 0 ? footprints[selectedIndex] : null;
+
+  const handlePrevFootprint = () => {
+    if (footprints.length <= 1 || selectedIndex < 0) return;
+    const prevIdx = (selectedIndex - 1 + footprints.length) % footprints.length;
+    handleSelectFootprint(footprints[prevIdx].id);
+  };
+
+  const handleNextFootprint = () => {
+    if (footprints.length <= 1 || selectedIndex < 0) return;
+    const nextIdx = (selectedIndex + 1) % footprints.length;
+    handleSelectFootprint(footprints[nextIdx].id);
+  };
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#121417] text-stone-100 font-sans">
@@ -269,8 +282,12 @@ export function App() {
       {/* Dedicated Side Inspection Drawer */}
       <InspectionDrawer
         footprint={selectedFootprint}
+        currentIndex={selectedIndex}
+        totalCount={footprints.length}
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
+        onPrev={handlePrevFootprint}
+        onNext={handleNextFootprint}
         onUpdateCaption={handleUpdateCaption}
         onDeleteFootprint={handleDeleteFootprint}
         onRelocate={handleRelocate}
