@@ -18,7 +18,8 @@ export interface ExifMetadata {
 export interface PhotoFootprint {
   id: string;
   filename: string;
-  dataUrl: string; // Base64 data URL for preview and storage
+  blobName?: string; // Azure Blob Storage object key when persisted in cloud
+  dataUrl: string; // Base64 data URL locally, or signed Azure Blob SAS URL in cloud
   size: number;
   mimeType: string;
   uploadedAt: string;

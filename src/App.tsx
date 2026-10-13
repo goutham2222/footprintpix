@@ -13,7 +13,10 @@ import { PhotoFootprint, GeoCoordinates } from './types/footprint';
 import { 
   loadPersistedFootprints, 
   savePersistedFootprints, 
-  clearAllPersistedFootprints 
+  updatePersistedFootprint,
+  deletePersistedFootprint,
+  clearAllPersistedFootprints,
+  isCloudStorageActive
 } from './utils/storage';
 import { createSampleFootprints } from './utils/sampleData';
 
@@ -37,6 +40,7 @@ export function App() {
   const [fitBoundsTrigger, setFitBoundsTrigger] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isCloudMode, setIsCloudMode] = useState(false);
 
   // Fallback manual location state
   const [pendingNoGpsPhotos, setPendingNoGpsPhotos] = useState<PhotoFootprint[]>([]);
@@ -45,10 +49,11 @@ export function App() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [relocatingFootprintId, setRelocatingFootprintId] = useState<string | null>(null);
 
-  // Load persisted photos from IndexedDB on initial mount
+  // Load persisted photos from Azure Storage (or local IndexedDB fallback) on initial mount
   useEffect(() => {
     async function init() {
       const saved = await loadPersistedFootprints();
+      setIsCloudMode(isCloudStorageActive());
       if (saved && saved.length > 0) {
         setFootprints(sortFootprintsChronologically(saved));
       }
@@ -93,13 +98,15 @@ export function App() {
   const handleLocationPickedOnMap = (coords: GeoCoordinates) => {
     if (relocatingFootprintId) {
       // User is relocating an existing pin
+      const targetId = relocatingFootprintId;
       setFootprints((prev) =>
         prev.map((fp) =>
-          fp.id === relocatingFootprintId
+          fp.id === targetId
             ? { ...fp, coordinates: coords }
             : fp
         )
       );
+      updatePersistedFootprint(targetId, { coordinates: coords });
       setRelocatingFootprintId(null);
       setIsPickingLocationOnMap(false);
       setIsDrawerOpen(true);
@@ -171,10 +178,12 @@ export function App() {
     setFootprints((prev) =>
       prev.map((fp) => (fp.id === id ? { ...fp, caption: newCaption } : fp))
     );
+    updatePersistedFootprint(id, { caption: newCaption });
   };
 
   const handleDeleteFootprint = (id: string) => {
     setFootprints((prev) => prev.filter((fp) => fp.id !== id));
+    deletePersistedFootprint(id);
     if (selectedFootprintId === id) {
       setSelectedFootprintId(null);
       setIsDrawerOpen(false);
@@ -197,7 +206,7 @@ export function App() {
   };
 
   const handleClearAll = async () => {
-    if (confirm('Clear all journey footprints from your local storage?')) {
+    if (confirm('Clear all journey footprints from storage?')) {
       await clearAllPersistedFootprints();
       setFootprints([]);
       setSelectedFootprintId(null);
@@ -241,8 +250,14 @@ export function App() {
           <div>
             <h1 className="text-base font-bold tracking-tight text-white flex items-center space-x-1.5">
               <span>FootprintPix</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 font-mono font-medium">
-                LOCAL
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${
+                  isCloudMode
+                    ? 'bg-sky-500/20 text-sky-400'
+                    : 'bg-orange-500/20 text-orange-400'
+                }`}
+              >
+                {isCloudMode ? 'AZURE' : 'LOCAL'}
               </span>
             </h1>
             <p className="text-[11px] text-stone-400">
