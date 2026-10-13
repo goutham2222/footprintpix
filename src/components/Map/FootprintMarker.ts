@@ -15,8 +15,8 @@ export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
   const height = 44;
 
   const pinColor = isSelected ? '#ea580c' : '#f97316';
-  const strokeColor = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.9)';
-  const strokeWidth = isSelected ? 2.8 : 1.8;
+  const strokeColor = '#ffffff';
+  const strokeWidth = isSelected ? 3.0 : 2.5;
 
   const pulseRipple = isSelected
     ? `<div class="footprint-pin-pulse"></div>`
@@ -25,16 +25,18 @@ export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="${width}" height="${height}" style="display: block; overflow: visible;">
       <defs>
-        <filter id="pin-shadow" x="-30%" y="-20%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.4" />
+        <filter id="pin-shadow" x="-40%" y="-30%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.45" />
+          <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000000" flood-opacity="0.3" />
         </filter>
         ${isSelected ? `
         <filter id="pin-glow" x="-50%" y="-40%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#fb923c" flood-opacity="0.95" />
+          <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.5" />
+          <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#fb923c" flood-opacity="0.95" />
         </filter>` : ''}
       </defs>
 
-      <!-- Pin Teardrop Body -->
+      <!-- Pin Teardrop Body with High-Contrast 2.5px White Stroke -->
       <g filter="${isSelected ? 'url(#pin-glow)' : 'url(#pin-shadow)'}">
         <path
           d="M 18 42 C 16.5 37 4 23 4 15 C 4 7.268 10.268 1 18 1 C 25.732 1 32 7.268 32 15 C 32 23 19.5 37 18 42 Z"
@@ -44,8 +46,8 @@ export function createFootprintIcon(isSelected: boolean = false): L.DivIcon {
           stroke-linejoin="round"
         />
 
-        <!-- Inner circular badge background -->
-        <circle cx="18" cy="15" r="9.5" fill="rgba(0, 0, 0, 0.15)" />
+        <!-- Inner circular badge background for high-contrast footprint visibility -->
+        <circle cx="18" cy="15" r="9.5" fill="rgba(0, 0, 0, 0.22)" />
 
         <!-- Crisp White Footprint Icon (Sole + Toes) -->
         <g fill="#ffffff" transform="translate(11, 7.5) scale(0.6)">
