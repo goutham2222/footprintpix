@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { 
   Sparkles, 
-  Trash
+  Trash,
+  Maximize2
 } from 'lucide-react';
 import { MapView } from './components/Map/MapView';
 import { InspectionDrawer } from './components/Inspection/InspectionDrawer';
@@ -20,6 +21,7 @@ export function App() {
   const [footprints, setFootprints] = useState<PhotoFootprint[]>([]);
   const [selectedFootprintId, setSelectedFootprintId] = useState<string | null>(null);
   const [selectionTrigger, setSelectionTrigger] = useState(0);
+  const [fitBoundsTrigger, setFitBoundsTrigger] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -145,6 +147,12 @@ export function App() {
     setSelectedFootprintId(null);
   };
 
+  const handleFitAllPins = () => {
+    setIsDrawerOpen(false);
+    setSelectedFootprintId(null);
+    setFitBoundsTrigger((prev) => prev + 1);
+  };
+
   const handleUpdateCaption = (id: string, newCaption: string) => {
     setFootprints((prev) =>
       prev.map((fp) => (fp.id === id ? { ...fp, caption: newCaption } : fp))
@@ -242,13 +250,24 @@ export function App() {
           )}
 
           {footprints.length > 0 && (
-            <button
-              onClick={handleClearAll}
-              className="p-2 rounded-xl bg-stone-900/90 hover:bg-rose-950/50 backdrop-blur-xl border border-stone-800 hover:border-rose-900/50 text-stone-400 hover:text-rose-400 text-xs shadow-xl transition-all"
-              title="Clear all pins"
-            >
-              <Trash className="w-3.5 h-3.5" />
-            </button>
+            <>
+              <button
+                onClick={handleFitAllPins}
+                className="px-3 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-1.5 shadow-xl transition-all"
+                title="Zoom to fit all journey pins"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-orange-400" />
+                <span>Fit All Pins</span>
+              </button>
+
+              <button
+                onClick={handleClearAll}
+                className="p-2 rounded-xl bg-stone-900/90 hover:bg-rose-950/50 backdrop-blur-xl border border-stone-800 hover:border-rose-900/50 text-stone-400 hover:text-rose-400 text-xs shadow-xl transition-all"
+                title="Clear all pins"
+              >
+                <Trash className="w-3.5 h-3.5" />
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -264,6 +283,7 @@ export function App() {
           footprints={footprints}
           selectedFootprintId={selectedFootprintId}
           selectionTrigger={selectionTrigger}
+          fitBoundsTrigger={fitBoundsTrigger}
           isDrawerOpen={isDrawerOpen}
           onSelectFootprint={handleSelectFootprint}
           onDismissSelection={handleCloseDrawer}

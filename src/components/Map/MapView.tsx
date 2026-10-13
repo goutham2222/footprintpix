@@ -8,6 +8,7 @@ interface MapViewProps {
   footprints: PhotoFootprint[];
   selectedFootprintId: string | null;
   selectionTrigger?: number;
+  fitBoundsTrigger?: number;
   isDrawerOpen?: boolean;
   onSelectFootprint: (id: string) => void;
   onDismissSelection?: () => void;
@@ -19,6 +20,7 @@ export const MapView: React.FC<MapViewProps> = ({
   footprints,
   selectedFootprintId,
   selectionTrigger = 0,
+  fitBoundsTrigger = 0,
   isDrawerOpen = false,
   onSelectFootprint,
   onDismissSelection,
@@ -152,6 +154,33 @@ export const MapView: React.FC<MapViewProps> = ({
       easeLinearity: 0.25
     });
   }, [selectedFootprintId, selectionTrigger]);
+
+  // Fit All Pins overview camera animation
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!fitBoundsTrigger || !map || footprints.length === 0) return;
+
+    if (footprints.length === 1) {
+      const single = footprints[0];
+      map.flyTo([single.coordinates.latitude, single.coordinates.longitude], 12, {
+        duration: 1.2,
+        easeLinearity: 0.25
+      });
+      return;
+    }
+
+    const bounds = L.latLngBounds(
+      footprints.map((fp) => [fp.coordinates.latitude, fp.coordinates.longitude] as [number, number])
+    );
+
+    map.flyToBounds(bounds, {
+      paddingTopLeft: [80, 100],
+      paddingBottomRight: [80, 140],
+      maxZoom: 14,
+      duration: 1.2,
+      easeLinearity: 0.25
+    });
+  }, [fitBoundsTrigger]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
