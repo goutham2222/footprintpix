@@ -1,4 +1,4 @@
-import type React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import { PhotoFootprint } from '../../types/footprint';
 
@@ -13,15 +13,31 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
   selectedFootprintId,
   onSelect
 }) => {
+  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => {
+    if (!selectedFootprintId) return;
+    const activeEl = itemRefs.current[selectedFootprintId];
+    if (activeEl) {
+      activeEl.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, [selectedFootprintId]);
+
   if (footprints.length === 0) return null;
 
   return (
     <div
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
-      className="absolute bottom-6 left-6 right-20 sm:right-28 z-20 pointer-events-none"
+      className={`absolute bottom-6 left-6 z-20 pointer-events-none transition-all duration-300 ${
+        selectedFootprintId ? 'right-20 sm:right-28 md:right-[468px]' : 'right-20 sm:right-28'
+      }`}
     >
-      <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-none pointer-events-auto p-1.5 max-w-full">
+      <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-none pointer-events-auto p-1.5 max-w-full scroll-smooth">
         {footprints.map((fp) => {
           const isSelected = fp.id === selectedFootprintId;
           const dateStr = fp.exif.dateTimeOriginal
@@ -34,6 +50,9 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
           return (
             <button
               key={fp.id}
+              ref={(el) => {
+                itemRefs.current[fp.id] = el;
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(fp.id);
