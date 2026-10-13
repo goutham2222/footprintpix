@@ -59,12 +59,15 @@ export const MapView: React.FC<MapViewProps> = ({
       attributionControl: false
     });
 
-    // High-performance public map tiles designed for web apps (CartoDB Voyager)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-    }).addTo(map);
+    // Free, high-performance Esri World Street Map tiles requiring zero API keys
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        attribution:
+          'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, METI, TomTom'
+      }
+    ).addTo(map);
 
     // Zoom control in bottom right for minimalist layout
     L.control.zoom({ position: 'bottomright' }).addTo(map);
