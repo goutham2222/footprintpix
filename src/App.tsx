@@ -17,6 +17,19 @@ import {
 } from './utils/storage';
 import { createSampleFootprints } from './utils/sampleData';
 
+function getFootprintTimestamp(fp: PhotoFootprint): number {
+  if (fp.exif.dateTimeOriginal) {
+    const parsed = Date.parse(fp.exif.dateTimeOriginal);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  const uploadedParsed = Date.parse(fp.uploadedAt);
+  return Number.isNaN(uploadedParsed) ? 0 : uploadedParsed;
+}
+
+function sortFootprintsChronologically(list: PhotoFootprint[]): PhotoFootprint[] {
+  return [...list].sort((a, b) => getFootprintTimestamp(a) - getFootprintTimestamp(b));
+}
+
 export function App() {
   const [footprints, setFootprints] = useState<PhotoFootprint[]>([]);
   const [selectedFootprintId, setSelectedFootprintId] = useState<string | null>(null);
@@ -37,7 +50,7 @@ export function App() {
     async function init() {
       const saved = await loadPersistedFootprints();
       if (saved && saved.length > 0) {
-        setFootprints(saved);
+        setFootprints(sortFootprintsChronologically(saved));
       }
       setIsLoaded(true);
     }
@@ -57,9 +70,10 @@ export function App() {
     newWithoutGps: PhotoFootprint[]
   ) => {
     if (newWithGps.length > 0) {
-      setFootprints((prev) => [...prev, ...newWithGps]);
-      // Select the first new photo to highlight it
-      setSelectedFootprintId(newWithGps[0].id);
+      const sortedNew = sortFootprintsChronologically(newWithGps);
+      setFootprints((prev) => sortFootprintsChronologically([...prev, ...sortedNew]));
+      // Select the first chronological new photo to highlight it
+      setSelectedFootprintId(sortedNew[0].id);
       setIsDrawerOpen(true);
     }
 
@@ -101,7 +115,7 @@ export function App() {
         hasGps: false
       };
 
-      setFootprints((prev) => [...prev, updatedPhoto]);
+      setFootprints((prev) => sortFootprintsChronologically([...prev, updatedPhoto]));
       setSelectedFootprintId(updatedPhoto.id);
 
       const nextIndex = currentPendingIndex + 1;
@@ -174,8 +188,8 @@ export function App() {
   };
 
   const handleLoadSampleTrip = async () => {
-    const samples = await createSampleFootprints();
-    setFootprints((prev) => [...prev, ...samples]);
+    const samples = sortFootprintsChronologically(await createSampleFootprints());
+    setFootprints((prev) => sortFootprintsChronologically([...prev, ...samples]));
     if (samples.length > 0) {
       setSelectedFootprintId(samples[0].id);
       setIsDrawerOpen(true);
