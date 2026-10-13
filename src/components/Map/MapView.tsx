@@ -4,6 +4,15 @@ import 'leaflet/dist/leaflet.css';
 import { PhotoFootprint, GeoCoordinates } from '../../types/footprint';
 import { createFootprintIcon } from './FootprintMarker';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface MapViewProps {
   footprints: PhotoFootprint[];
   selectedFootprintId: string | null;
@@ -108,8 +117,46 @@ export const MapView: React.FC<MapViewProps> = ({
         zIndexOffset: isSelected ? 1000 : 100
       });
 
+      const dateStr = fp.exif.dateTimeOriginal
+        ? new Date(fp.exif.dateTimeOriginal).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          })
+        : new Date(fp.uploadedAt).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+      const rawTitle = fp.caption?.trim() || fp.locationName?.trim() || '';
+      const escapedTitle = rawTitle ? escapeHtml(rawTitle) : '';
+      const escapedDate = escapeHtml(dateStr);
+
+      const tooltipHtml = `
+        <div class="flex items-center space-x-2.5">
+          <img src="${fp.dataUrl}" alt="" class="w-9 h-9 rounded-lg object-cover border border-stone-700 shrink-0" />
+          <div class="flex flex-col max-w-[160px] overflow-hidden">
+            ${
+              escapedTitle
+                ? `<span class="text-xs font-semibold text-stone-100 truncate leading-tight">${escapedTitle}</span>
+                   <span class="text-[10px] text-stone-400 leading-tight mt-0.5">${escapedDate}</span>`
+                : `<span class="text-xs font-medium text-stone-200 leading-tight">${escapedDate}</span>`
+            }
+          </div>
+        </div>
+      `;
+
+      marker.bindTooltip(tooltipHtml, {
+        direction: 'top',
+        offset: [0, -42],
+        opacity: 1,
+        className: 'footprint-pin-tooltip'
+      });
+
       marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
+        marker.closeTooltip();
         onSelectFootprint(fp.id);
       });
 

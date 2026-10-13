@@ -64,3 +64,20 @@ html, body, #root {
   scrollbar-width: none;
 }
 
+/* Custom dark glassmorphic hover tooltip for footprint pins */
+.leaflet-tooltip.footprint-pin-tooltip {
+  background: rgba(28, 25, 23, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(68, 64, 60, 0.85);
+  border-radius: 12px;
+  padding: 6px 10px;
+  color: #f5f5f4;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.leaflet-tooltip-top.footprint-pin-tooltip::before {
+  border-top-color: rgba(28, 25, 23, 0.95);
+}
+
+
