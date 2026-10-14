@@ -25,6 +25,13 @@ jobs:
           fi
           echo "Teardown confirmed for Resource Group: ${{ github.event.inputs.resource_group }}"
 
+      - name: Check for Azure Credentials Secret
+        run: |
+          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            echo "::error::Secret 'AZURE_CREDENTIALS' is not configured in this repository. If your Azure tenant (e.g. Azure for Students) restricts App Registrations/Service Principals, you do not need this workflow—simply run the teardown script locally: 'npm run teardown:azure'"
+            exit 1
+          fi
+
       - name: Log in to Azure CLI
         uses: azure/login@v2
         with:
