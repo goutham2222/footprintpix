@@ -28,6 +28,11 @@ dist-ssr
 .env.*
 !.env.example
 local.settings.json
+*.local.settings.json
+
+# Azurite emulator files
+__azurite*
+AzuriteConfig
 
 # Local rules & agent debug log
 DEBUG_LOG.md

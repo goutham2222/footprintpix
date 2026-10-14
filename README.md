@@ -103,44 +103,37 @@ In this mode, all snapshots and coordinates are saved to your browser's IndexedD
 ---
 
 ### Option B: Full-Stack Local Mode with Azure Functions (Optional)
-To test the Azure Functions API, direct Blob uploads, and Table Storage locally:
 
-1. **Prerequisites (Node.js only — No Docker needed!):**
+> [!TIP]
+> **Option A is recommended for almost all local work.** You only need Option B if you are actively modifying the backend TypeScript code in `api/src/`.
+
+To run both the Vite frontend and the serverless Azure Functions API locally:
+
+1. **Prerequisites:**
    - [Azure Functions Core Tools v4](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local):
      ```bash
      npm install -g azure-functions-core-tools@4 --unsafe-perm true
      ```
-   - Storage: You can use your real Azure Storage connection string in `api/local.settings.json`, or the lightweight npm-based emulator:
-     ```bash
-     npx azurite
-     ```
 
 2. **Configure API Settings:**
-   In `api/local.settings.json`:
-   ```json
-   {
-     "IsEncrypted": false,
-     "Values": {
-       "FUNCTIONS_WORKER_RUNTIME": "node",
-       "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-       "AZURE_STORAGE_CONNECTION_STRING": "UseDevelopmentStorage=true"
-     },
-     "Host": {
-       "CORS": "*"
-     }
-   }
-   ```
-   *(Note: You can also substitute a real Azure Storage connection string in `AZURE_STORAGE_CONNECTION_STRING` for testing against cloud storage).*
-
-3. **Install & Build the Backend API:**
+   Copy the provided template to create your local settings:
    ```bash
-   cd api
-   npm install
-   npm run build
-   cd ..
+   cp api/local.settings.json.example api/local.settings.json
+   ```
+   *(By default, this uses `UseDevelopmentStorage=true`. If testing against cloud storage, you can replace that value with your real Azure Storage Connection String).*
+
+3. **Storage Emulator (Only if not using real Azure Storage):**
+   If using `UseDevelopmentStorage=true`, start the Azurite storage emulator in a **separate terminal window**:
+   ```bash
+   npx azurite
    ```
 
-4. **Run using Azure Static Web Apps CLI (Recommended):**
+4. **Install & Build Backend API:**
+   ```bash
+   cd api && npm install && npm run build && cd ..
+   ```
+
+5. **Start Frontend & Backend via SWA CLI:**
    ```bash
    npm install -g @azure/static-web-apps-cli
    swa start http://localhost:5173 --api-location api --run "npm run dev"
@@ -164,6 +157,8 @@ az login
 az group create --name rg-footprintpix-prod --location eastus2
 
 # 3. Create General Purpose v2 Storage Account (LRS)
+# Note: Storage account names must be globally unique across all Azure accounts (3-24 lowercase alphanumeric).
+# If 'stfootprintpixprod' is already taken, choose a unique name (e.g. stfootprintpix$RANDOM).
 az storage account create \
   --name stfootprintpixprod \
   --resource-group rg-footprintpix-prod \
@@ -182,7 +177,7 @@ az storage cors add \
   --account-name stfootprintpixprod \
   --services b \
   --methods GET PUT HEAD OPTIONS \
-  --origins "http://localhost:5173" "https://*.azurestaticapps.net" \
+  --origins "*" \
   --allowed-headers "x-ms-blob-type,x-ms-version,content-type,content-length" \
   --exposed-headers "x-ms-request-id,ETag" \
   --max-age 3600
