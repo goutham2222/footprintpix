@@ -99,3 +99,4 @@ echo ""
 echo "✨ Teardown initiated successfully in the background!"
 echo "   Azure is now deleting the resource group and stopping all related compute/storage charges."
 echo "   You can verify deletion status anytime with: az group exists --name ${RESOURCE_GROUP}"
+

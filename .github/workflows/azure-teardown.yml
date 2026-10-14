@@ -44,3 +44,4 @@ jobs:
           else
             echo "Resource Group '$RG' does not exist. Nothing to tear down."
           fi
+
