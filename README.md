@@ -140,9 +140,9 @@ To run both the Vite frontend and the serverless Azure Functions API locally:
    - **Terminal 1 (Backend API):**
      ```bash
      cd api
-     func start
+     npm start
      ```
-     *(Starts the Functions API on `http://localhost:7071`)*.
+     *(Builds and launches the Functions API on `http://localhost:7071`, ensuring Node is properly resolved in PATH)*.
    - **Terminal 2 (Frontend & SWA Proxy — from project root):**
      ```bash
      swa start http://localhost:5173 --api-devserver-url http://localhost:7071 --run "npm run dev"
