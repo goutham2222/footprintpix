@@ -227,7 +227,6 @@ az staticwebapp secrets list \
 2. Add a new repository secret:
    - **Name:** `AZURE_STATIC_WEB_APPS_API_TOKEN`
    - **Value:** The deployment token obtained in Step 2.
-3. *(Optional for CI teardown workflow)*: Add `AZURE_CREDENTIALS` (Service Principal JSON from `az ad sp create-for-rbac`) if you wish to run the teardown workflow via GitHub Actions.
 
 #### Deployment Architecture:
 - **Continuous Integration (`.github/workflows/ci.yml`):** Automatically runs on pushes and pull requests to `main` (type-checking, linting, build verification).
@@ -240,32 +239,30 @@ az staticwebapp secrets list \
 
 ## 🛑 Teardown & Cost Management ($0 Running Guarantee)
 
-To guarantee you never incur unwanted cloud charges after testing or presenting the application, FootprintPix includes one-click teardown capabilities:
+FootprintPix runs on serverless services with no fixed hourly VM costs:
+- **Azure Static Web Apps (Free Tier)** is **$0.00 / month forever**.
+- **Azure Storage** only bills pennies for stored gigabytes (`~$0.018/GB/month`) and zero when empty.
 
-### Option 1: Local Terminal Teardown (Fastest)
+If you ever want to completely delete all cloud resources from your Azure account to guarantee **zero ongoing cost or clutter**, use the built-in terminal teardown script:
 
-Ensure you have the Azure CLI logged in (`az login`), then run:
+### Local Terminal Teardown
+
+Make sure you are logged in to the Azure CLI (`az login`), then run:
 
 ```bash
-# Preview the resources that will be removed (Dry Run)
+# 1. Preview the resources that will be removed (Dry Run)
 npm run teardown:azure:dry-run
 
-# Interactively delete the Resource Group and all resources
+# 2. Interactively delete the Resource Group and all resources
 npm run teardown:azure
 ```
 
-To run with non-interactive confirmation or a custom Resource Group:
+To run with non-interactive confirmation or specify a custom Resource Group:
 ```bash
 ./scripts/azure-teardown.sh rg-footprintpix-prod --yes
 ```
 
-### Option 2: GitHub Actions Teardown Workflow
-
-1. Navigate to **Actions** &rarr; **Manual CD - Teardown Azure Resources**.
-2. Click **Run workflow**:
-   - **Resource Group:** `rg-footprintpix-prod`
-   - **Confirmation:** Type `teardown` into the text box.
-3. The workflow executes `az group delete`, completely removing the Static Web App, Storage Account, Blob containers, and Table Storage.
+This triggers `az group delete --name rg-footprintpix-prod --yes --no-wait` under your personal Azure CLI login, instantly stopping all billable storage and removing the Static Web App, Storage Account, Blob containers, and Table Storage.
 
 ---
 
