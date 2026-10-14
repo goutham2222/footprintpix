@@ -57,7 +57,7 @@ export function entityToFootprint(entity: FootprintTableEntity) {
     exif,
     caption: entity.caption || '',
     locationName: entity.locationName || undefined,
-    isDeleted: Boolean(entity.isDeleted),
+    isDeleted: entity.isDeleted === true || (entity.isDeleted as any) === 'true',
     deletedAt: entity.deletedAt || null
   };
 }

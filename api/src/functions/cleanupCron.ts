@@ -29,7 +29,8 @@ export async function cleanupExpiredFootprints(retentionDays: number = DEFAULT_R
   const purgedIds: string[] = [];
 
   for await (const entity of entities) {
-    if (entity.isDeleted && entity.deletedAt) {
+    const isEntityDeleted = entity.isDeleted === true || (entity.isDeleted as any) === 'true';
+    if (isEntityDeleted && entity.deletedAt) {
       const deletedTimestamp = Date.parse(entity.deletedAt);
       if (!Number.isNaN(deletedTimestamp) && deletedTimestamp < thresholdTime) {
         // 1. Purge Blob from Azure Blob Storage

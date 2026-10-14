@@ -84,4 +84,11 @@ html, body, #root {
   border-top-color: rgba(28, 25, 23, 0.95);
 }
 
+/* Hide zoom controls on mobile touch devices (pinch-to-zoom is native) */
+@media (max-width: 640px) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+}
+
 

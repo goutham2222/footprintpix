@@ -5,15 +5,21 @@ import { PhotoFootprint } from '../../types/footprint';
 
 interface UploadDropzoneProps {
   onPhotosProcessed: (newFootprints: PhotoFootprint[], missingGpsPhotos: PhotoFootprint[]) => void;
+  variant?: 'compact' | 'full';
 }
 
-export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onPhotosProcessed }) => {
+export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ 
+  onPhotosProcessed,
+  variant = 'full'
+}) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFiles = async (files: FileList | File[]) => {
-    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    const imageFiles = Array.from(files).filter(
+      (file) => file.type.startsWith('image/') || /\.(heic|heif|jpe?g|png|webp|avif)$/i.test(file.name)
+    );
     if (imageFiles.length === 0) return;
 
     setIsProcessing(true);
@@ -82,6 +88,33 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onPhotosProcesse
       e.target.value = '';
     }
   };
+
+  if (variant === 'compact') {
+    return (
+      <div className="relative">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,.heic,.heif"
+          onChange={handleFileInputChange}
+          className="hidden"
+        />
+        <button
+          onClick={() => !isProcessing && fileInputRef.current?.click()}
+          disabled={isProcessing}
+          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-medium text-xs flex items-center space-x-1.5 shadow-lg shadow-orange-950/40 active:scale-95 transition-all disabled:opacity-75"
+        >
+          {isProcessing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <UploadCloud className="w-3.5 h-3.5" />
+          )}
+          <span>{isProcessing ? 'Processing...' : 'Add Photos'}</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

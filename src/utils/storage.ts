@@ -64,6 +64,7 @@ async function uploadFootprintToAzure(fp: PhotoFootprint): Promise<void> {
       if (putRes.ok) {
         blobName = sasData.blobName;
         fp.blobName = blobName;
+        fp.dataUrl = sasData.readUrl;
       }
     }
   }

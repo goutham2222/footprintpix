@@ -206,8 +206,10 @@ export function App() {
     // 3. Mark photo as deleting so PhotoStrip smoothly transitions it out
     setDeletingId(id);
 
-    // 4. Soft delete in storage
-    await softDeleteFootprint(id, targetFp);
+    // 4. Soft delete in storage in the background
+    softDeleteFootprint(id, targetFp).catch((err) =>
+      console.error('Failed to soft delete footprint:', err)
+    );
 
     // 5. Cleanly remove from footprints state after the 320ms transition completes
     setTimeout(() => {
@@ -267,58 +269,65 @@ export function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#121417] text-stone-100 font-sans">
-      {/* Top Floating App Bar */}
-      <header className="absolute top-5 left-5 z-20 pointer-events-none flex flex-col space-y-3">
-        <div className="pointer-events-auto flex items-center space-x-3 bg-stone-900/90 backdrop-blur-xl border border-stone-800/80 px-4 py-3 rounded-2xl shadow-2xl">
-          {/* Logo Footprint SVG */}
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-600 to-rose-600 flex items-center justify-center shadow-lg shadow-orange-950/40 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12.2 11.2c-1.8.3-3.2 1.9-3.2 3.8 0 2.2 1.8 4 4 4s3.7-1.4 3.9-3.3c.3-2.3-2.4-4.9-4.7-4.5z" />
-              <path d="M11.8 19c-1.2 0-2.2.9-2.2 2s1 2 2.2 2 2.2-.9 2.2-2-1-2-2.2-2z" opacity="0.9" />
-              <circle cx="8" cy="9.5" r="1.1" />
-              <circle cx="10.2" cy="7.2" r="1.3" />
-              <circle cx="12.8" cy="6.2" r="1.5" />
-              <circle cx="15.6" cy="6.8" r="1.3" />
-              <circle cx="17.8" cy="8.8" r="1.1" />
-            </svg>
+    <div className="relative w-screen h-screen h-[100dvh] overflow-hidden bg-[#121417] text-stone-100 font-sans">
+      {/* Top Responsive App Bar */}
+      <header className="absolute top-3 left-3 right-3 sm:top-5 sm:left-5 sm:right-auto z-20 pointer-events-none flex flex-col space-y-2 sm:space-y-3">
+        <div className="pointer-events-auto flex items-center justify-between sm:justify-start space-x-3 bg-stone-900/90 backdrop-blur-xl border border-stone-800/80 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl shadow-2xl">
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+            {/* Logo Footprint SVG */}
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-600 via-orange-600 to-rose-600 flex items-center justify-center shadow-lg shadow-orange-950/40 text-white shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M12.2 11.2c-1.8.3-3.2 1.9-3.2 3.8 0 2.2 1.8 4 4 4s3.7-1.4 3.9-3.3c.3-2.3-2.4-4.9-4.7-4.5z" />
+                <path d="M11.8 19c-1.2 0-2.2.9-2.2 2s1 2 2.2 2 2.2-.9 2.2-2-1-2-2.2-2z" opacity="0.9" />
+                <circle cx="8" cy="9.5" r="1.1" />
+                <circle cx="10.2" cy="7.2" r="1.3" />
+                <circle cx="12.8" cy="6.2" r="1.5" />
+                <circle cx="15.6" cy="6.8" r="1.3" />
+                <circle cx="17.8" cy="8.8" r="1.1" />
+              </svg>
+            </div>
+
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-bold tracking-tight text-white flex items-center space-x-1.5">
+                <span className="truncate">FootprintPix</span>
+                <span
+                  className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium shrink-0 ${
+                    isCloudMode
+                      ? 'bg-sky-500/20 text-sky-400'
+                      : 'bg-orange-500/20 text-orange-400'
+                  }`}
+                >
+                  {isCloudMode ? 'AZURE' : 'LOCAL'}
+                </span>
+              </h1>
+              <p className="text-[10px] sm:text-[11px] text-stone-400 truncate">
+                {footprints.length} {footprints.length === 1 ? 'journey pin' : 'journey pins'} placed
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-base font-bold tracking-tight text-white flex items-center space-x-1.5">
-              <span>FootprintPix</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${
-                  isCloudMode
-                    ? 'bg-sky-500/20 text-sky-400'
-                    : 'bg-orange-500/20 text-orange-400'
-                }`}
-              >
-                {isCloudMode ? 'AZURE' : 'LOCAL'}
-              </span>
-            </h1>
-            <p className="text-[11px] text-stone-400">
-              {footprints.length} {footprints.length === 1 ? 'journey pin' : 'journey pins'} placed
-            </p>
+          {/* Compact Add Photos Button on Mobile inside Top Bar */}
+          <div className="sm:hidden shrink-0">
+            <UploadDropzone onPhotosProcessed={handlePhotosProcessed} variant="compact" />
           </div>
         </div>
 
         {/* Action Pills */}
-        <div className="pointer-events-auto flex items-center space-x-2">
+        <div className="pointer-events-auto flex items-center space-x-2 overflow-x-auto scrollbar-none py-0.5">
           {footprints.length === 0 && (
             <button
               onClick={handleLoadSampleTrip}
-              className="px-3.5 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-2 shadow-xl transition-all"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-1.5 shadow-xl shrink-0 transition-all"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Load Sample Journey</span>
+              <span>Load Sample</span>
             </button>
           )}
 
           {footprints.length > 0 && (
             <button
               onClick={handleFitAllPins}
-              className="px-3 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-1.5 shadow-xl transition-all"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-1.5 shadow-xl shrink-0 transition-all"
               title="Zoom to fit all journey pins"
             >
               <Maximize2 className="w-3.5 h-3.5 text-orange-400" />
@@ -329,7 +338,7 @@ export function App() {
           {/* Recently Deleted / Trash recovery button */}
           <button
             onClick={() => setIsTrashModalOpen(true)}
-            className="px-3 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-400 hover:text-stone-200 text-xs font-medium flex items-center space-x-1.5 shadow-xl transition-all"
+            className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-400 hover:text-stone-200 text-xs font-medium flex items-center space-x-1.5 shadow-xl shrink-0 transition-all"
             title="View recently deleted photos"
           >
             <History className="w-3.5 h-3.5 text-stone-400" />
@@ -339,7 +348,7 @@ export function App() {
           {footprints.length > 0 && (
             <button
               onClick={handleClearAll}
-              className="p-2 rounded-xl bg-stone-900/90 hover:bg-rose-950/50 backdrop-blur-xl border border-stone-800 hover:border-rose-900/50 text-stone-400 hover:text-rose-400 text-xs shadow-xl transition-all"
+              className="p-1.5 sm:p-2 rounded-xl bg-stone-900/90 hover:bg-rose-950/50 backdrop-blur-xl border border-stone-800 hover:border-rose-900/50 text-stone-400 hover:text-rose-400 text-xs shadow-xl shrink-0 transition-all"
               title="Clear all active pins"
             >
               <Trash className="w-3.5 h-3.5" />
@@ -348,9 +357,9 @@ export function App() {
         </div>
       </header>
 
-      {/* Top Right Upload Widget */}
-      <div className="absolute top-5 right-5 z-20 max-w-xs sm:max-w-sm pointer-events-auto">
-        <UploadDropzone onPhotosProcessed={handlePhotosProcessed} />
+      {/* Top Right Desktop Upload Dropzone */}
+      <div className="hidden sm:block absolute top-5 right-5 z-20 max-w-xs sm:max-w-sm pointer-events-auto">
+        <UploadDropzone onPhotosProcessed={handlePhotosProcessed} variant="full" />
       </div>
 
       {/* Primary Full-Bleed Map Canvas */}

@@ -19,6 +19,18 @@ export const ManualLocationModal: React.FC<ManualLocationModalProps> = ({
   onSkip,
   onCancelAll
 }) => {
+  // Keyboard accessibility: Escape to cancel/close modal
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancelAll();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onCancelAll]);
+
   if (!isOpen || pendingPhotos.length === 0 || currentIndex >= pendingPhotos.length) {
     return null;
   }

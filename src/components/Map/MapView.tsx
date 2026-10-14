@@ -106,6 +106,22 @@ export const MapView: React.FC<MapViewProps> = ({
     };
   }, []);
 
+  // Invalidate map size on window/container resize to prevent grey tile patches
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    const map = mapInstanceRef.current;
+    if (!container || !map) return;
+
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   // Handle map click: either manually picking location or dismissing active selection
   useEffect(() => {
     const map = mapInstanceRef.current;
