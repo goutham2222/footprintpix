@@ -7,7 +7,9 @@
     "dev": "vite",
     "type-check": "tsc -b --noEmit",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "teardown:azure": "bash scripts/azure-teardown.sh",
+    "teardown:azure:dry-run": "bash scripts/azure-teardown.sh --dry-run"
   },
   "dependencies": {
     "exifr": "^7.1.3",

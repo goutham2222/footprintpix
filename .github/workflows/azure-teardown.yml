@@ -1,0 +1,46 @@
+name: Manual CD - Teardown Azure Resources
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group:
+        description: 'Azure Resource Group to completely tear down'
+        required: true
+        default: 'rg-footprintpix-prod'
+      confirmation:
+        description: 'Type "teardown" to confirm permanent deletion of all resources'
+        required: true
+        default: ''
+
+jobs:
+  teardown_azure_resources:
+    runs-on: ubuntu-latest
+    name: Teardown Azure Resources
+    steps:
+      - name: Verify Teardown Confirmation Guardrail
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "teardown" ]; then
+            echo "::error::Teardown cancelled! Confirmation input must be exactly 'teardown' to proceed."
+            exit 1
+          fi
+          echo "Teardown confirmed for Resource Group: ${{ github.event.inputs.resource_group }}"
+
+      - name: Log in to Azure CLI
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Delete Resource Group and Stop Charges
+        run: |
+          RG="${{ github.event.inputs.resource_group }}"
+          echo "Checking if Resource Group '$RG' exists..."
+          if az group exists --name "$RG" | grep -q "true"; then
+            echo "Listing active resources in '$RG' before deletion:"
+            az resource list --resource-group "$RG" --query "[].{Name:name, Type:type, Location:location}" -o table || true
+
+            echo "Triggering deletion of Resource Group '$RG'..."
+            az group delete --name "$RG" --yes --no-wait
+            echo "Resource Group '$RG' deletion initiated in Azure. All billing and storage charges will cease immediately."
+          else
+            echo "Resource Group '$RG' does not exist. Nothing to tear down."
+          fi
