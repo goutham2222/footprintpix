@@ -102,19 +102,17 @@ In this mode, all snapshots and coordinates are saved to your browser's IndexedD
 
 ---
 
-### Option B: Full-Stack Local Mode with Azure Functions & Azurite
+### Option B: Full-Stack Local Mode with Azure Functions (Optional)
 To test the Azure Functions API, direct Blob uploads, and Table Storage locally:
 
-1. **Prerequisites:**
+1. **Prerequisites (Node.js only — No Docker needed!):**
    - [Azure Functions Core Tools v4](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local):
      ```bash
      npm install -g azure-functions-core-tools@4 --unsafe-perm true
      ```
-   - [Azurite Storage Emulator](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite):
+   - Storage: You can use your real Azure Storage connection string in `api/local.settings.json`, or the lightweight npm-based emulator:
      ```bash
-     npm install -g azurite
-     # Or run with Docker:
-     docker run -p 10000:10000 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
+     npx azurite
      ```
 
 2. **Configure API Settings:**
