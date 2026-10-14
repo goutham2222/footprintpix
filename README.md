@@ -130,14 +130,20 @@ To run both the Vite frontend and the serverless Azure Functions API locally:
 
 4. **Install & Build Backend API:**
    ```bash
-   cd api && npm install && npm run build && cd ..
+   cd api && npm install && npm run build
    ```
 
-5. **Start Frontend & Backend via SWA CLI:**
-   ```bash
-   npm install -g @azure/static-web-apps-cli
-   swa start http://localhost:5173 --api-location api --run "npm run dev"
-   ```
+5. **Start Frontend & Backend:**
+   - **Terminal 1** (Start the API directly with Azure Functions Core Tools):
+     ```bash
+     cd api
+     func start
+     ```
+   - **Terminal 2** (Start the Vite frontend via SWA CLI):
+     ```bash
+     swa start http://localhost:5173 --api-devserver-url http://localhost:7071 --run "npm run dev"
+     ```
+   *(Using `--api-devserver-url` bypasses SWA CLI's internal downloader and connects directly to your running API).*
 
 ---
 
