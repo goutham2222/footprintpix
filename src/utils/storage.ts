@@ -2,6 +2,7 @@ import { get, set, del } from 'idb-keyval';
 import { GeoCoordinates, PhotoFootprint } from '../types/footprint';
 
 const STORAGE_KEY = 'footprintpix_photos_v1';
+const STORAGE_KEY_DELETED = 'footprintpix_photos_deleted_v1';
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 let cloudModeActive = false;
@@ -85,8 +86,8 @@ async function uploadFootprintToAzure(fp: PhotoFootprint): Promise<void> {
 }
 
 /**
- * Loads footprints from Azure Table Storage + Blob SAS URLs if the `/api` backend
- * is reachable and configured, or falls back to local IndexedDB in local-only mode.
+ * Loads active footprints from Azure Table Storage if connected,
+ * or falls back to local IndexedDB.
  */
 export async function loadPersistedFootprints(): Promise<PhotoFootprint[]> {
   try {
@@ -103,18 +104,18 @@ export async function loadPersistedFootprints(): Promise<PhotoFootprint[]> {
           cloudModeActive = true;
           syncedCloudIds.clear();
           payload.footprints.forEach((fp) => syncedCloudIds.add(fp.id));
-          return payload.footprints;
+          return payload.footprints.filter((fp) => !fp.isDeleted);
         }
       }
     }
   } catch {
-    // Cloud API not reachable (e.g. local Vite dev server) — fall back to IndexedDB
+    // Cloud API not reachable — fall back to IndexedDB
   }
 
   cloudModeActive = false;
   try {
     const data = await get<PhotoFootprint[]>(STORAGE_KEY);
-    return data || [];
+    return (data || []).filter((fp) => !fp.isDeleted);
   } catch (error) {
     console.error('Failed to load footprints from IndexedDB:', error);
     return [];
@@ -122,11 +123,39 @@ export async function loadPersistedFootprints(): Promise<PhotoFootprint[]> {
 }
 
 /**
- * Saves footprints to local IndexedDB and, when Cloud Mode is active,
- * uploads any newly added footprints to Azure Blob + Table Storage.
+ * Loads soft-deleted footprints from Azure Table Storage (GET /api/footprints/deleted)
+ * or falls back to local IndexedDB deleted store.
+ */
+export async function loadDeletedFootprints(): Promise<PhotoFootprint[]> {
+  if (cloudModeActive) {
+    try {
+      const res = await fetch(`${API_BASE}/footprints/deleted`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' }
+      });
+      if (res.ok) {
+        const payload = (await res.json()) as { footprints?: PhotoFootprint[] };
+        if (Array.isArray(payload.footprints)) {
+          return payload.footprints;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load deleted footprints from cloud:', err);
+    }
+  }
+
+  try {
+    const deleted = await get<PhotoFootprint[]>(STORAGE_KEY_DELETED);
+    return deleted || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Saves active footprints to local IndexedDB and syncs new footprints to Azure.
  */
 export async function savePersistedFootprints(footprints: PhotoFootprint[]): Promise<void> {
-  // Always keep local IndexedDB cache updated as a fast local backup
   try {
     await set(STORAGE_KEY, footprints);
   } catch (error) {
@@ -165,35 +194,161 @@ export async function updatePersistedFootprint(
 }
 
 /**
- * Deletes a single footprint and its underlying blob in Azure Storage.
+ * Soft deletes a single footprint: flags as isDeleted = true with timestamp.
+ * Does NOT delete the image binary from Azure Blob Storage.
  */
-export async function deletePersistedFootprint(id: string): Promise<void> {
+export async function softDeleteFootprint(id: string, fp?: PhotoFootprint): Promise<void> {
   syncedCloudIds.delete(id);
-  if (!cloudModeActive) return;
+
+  if (cloudModeActive) {
+    try {
+      await fetch(`${API_BASE}/footprints/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Failed to soft delete footprint from Azure:', error);
+    }
+  }
+
+  // Update local IndexedDB storage
   try {
-    await fetch(`${API_BASE}/footprints/${encodeURIComponent(id)}`, {
-      method: 'DELETE'
-    });
+    const active = (await get<PhotoFootprint[]>(STORAGE_KEY)) || [];
+    const itemToTrash = fp || active.find((x) => x.id === id);
+    const updatedActive = active.filter((x) => x.id !== id);
+    await set(STORAGE_KEY, updatedActive);
+
+    if (itemToTrash) {
+      const deletedList = (await get<PhotoFootprint[]>(STORAGE_KEY_DELETED)) || [];
+      const trashedItem: PhotoFootprint = {
+        ...itemToTrash,
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      };
+      await set(STORAGE_KEY_DELETED, [trashedItem, ...deletedList.filter((x) => x.id !== id)]);
+    }
   } catch (error) {
-    console.error('Failed to delete footprint from Azure:', error);
+    console.error('Failed to update local stores on soft delete:', error);
   }
 }
 
 /**
- * Clears all footprints from both IndexedDB and Azure Storage.
+ * Restores a soft-deleted footprint back to the active map.
+ */
+export async function restoreFootprint(id: string): Promise<PhotoFootprint | null> {
+  let restoredItem: PhotoFootprint | null = null;
+
+  if (cloudModeActive) {
+    try {
+      const res = await fetch(`${API_BASE}/footprints/${encodeURIComponent(id)}/restore`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const payload = (await res.json()) as { footprint?: PhotoFootprint };
+        if (payload.footprint) {
+          restoredItem = payload.footprint;
+          syncedCloudIds.add(id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore footprint from Azure:', error);
+    }
+  }
+
+  // Restore in local IndexedDB
+  try {
+    const deletedList = (await get<PhotoFootprint[]>(STORAGE_KEY_DELETED)) || [];
+    const found = deletedList.find((x) => x.id === id);
+    const updatedDeleted = deletedList.filter((x) => x.id !== id);
+    await set(STORAGE_KEY_DELETED, updatedDeleted);
+
+    if (found) {
+      const activeList = (await get<PhotoFootprint[]>(STORAGE_KEY)) || [];
+      const unflagged: PhotoFootprint = {
+        ...found,
+        isDeleted: false,
+        deletedAt: null
+      };
+      await set(STORAGE_KEY, [...activeList.filter((x) => x.id !== id), unflagged]);
+      if (!restoredItem) {
+        restoredItem = unflagged;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to restore in local store:', error);
+  }
+
+  return restoredItem;
+}
+
+/**
+ * Permanently hard-deletes a single footprint (purges blob from Blob Storage + row from Table).
+ */
+export async function permanentlyDeleteFootprint(id: string): Promise<void> {
+  syncedCloudIds.delete(id);
+
+  if (cloudModeActive) {
+    try {
+      await fetch(`${API_BASE}/footprints/${encodeURIComponent(id)}/permanent`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Failed to permanently delete footprint from Azure:', error);
+    }
+  }
+
+  try {
+    const deletedList = (await get<PhotoFootprint[]>(STORAGE_KEY_DELETED)) || [];
+    await set(STORAGE_KEY_DELETED, deletedList.filter((x) => x.id !== id));
+  } catch (error) {
+    console.error('Failed to purge from local deleted store:', error);
+  }
+}
+
+/**
+ * Permanently purges all soft-deleted footprints ("Empty Trash").
+ */
+export async function permanentlyDeleteAllDeleted(): Promise<void> {
+  if (cloudModeActive) {
+    try {
+      await fetch(`${API_BASE}/footprints/deleted`, { method: 'DELETE' });
+    } catch (error) {
+      console.error('Failed to empty trash in Azure:', error);
+    }
+  }
+
+  try {
+    await del(STORAGE_KEY_DELETED);
+  } catch (error) {
+    console.error('Failed to empty local trash store:', error);
+  }
+}
+
+/**
+ * Soft deletes all active footprints.
  */
 export async function clearAllPersistedFootprints(): Promise<void> {
   syncedCloudIds.clear();
+
+  if (cloudModeActive) {
+    try {
+      await fetch(`${API_BASE}/footprints`, { method: 'DELETE' });
+    } catch (error) {
+      console.error('Failed to clear footprints from Azure:', error);
+    }
+  }
+
   try {
+    const active = (await get<PhotoFootprint[]>(STORAGE_KEY)) || [];
+    const nowIso = new Date().toISOString();
+    const trashed = active.map((fp) => ({
+      ...fp,
+      isDeleted: true,
+      deletedAt: nowIso
+    }));
+    const existingDeleted = (await get<PhotoFootprint[]>(STORAGE_KEY_DELETED)) || [];
+    await set(STORAGE_KEY_DELETED, [...trashed, ...existingDeleted]);
     await del(STORAGE_KEY);
   } catch (error) {
     console.error('Failed to clear footprints from IndexedDB:', error);
-  }
-
-  if (!cloudModeActive) return;
-  try {
-    await fetch(`${API_BASE}/footprints`, { method: 'DELETE' });
-  } catch (error) {
-    console.error('Failed to clear footprints from Azure:', error);
   }
 }

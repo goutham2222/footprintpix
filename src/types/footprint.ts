@@ -28,5 +28,7 @@ export interface PhotoFootprint {
   exif: ExifMetadata;
   caption?: string;
   locationName?: string; // Optional reverse geocoded or formatted string
+  isDeleted?: boolean; // Soft-delete flag
+  deletedAt?: string | null; // ISO timestamp when marked as deleted
 }
 

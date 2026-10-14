@@ -8,7 +8,7 @@ import {
 
 const PARTITION_KEY = 'default';
 
-interface FootprintTableEntity {
+export interface FootprintTableEntity {
   partitionKey: string;
   rowKey: string;
   filename: string;
@@ -23,9 +23,11 @@ interface FootprintTableEntity {
   exifJson: string;
   caption?: string;
   locationName?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
-function entityToFootprint(entity: FootprintTableEntity) {
+export function entityToFootprint(entity: FootprintTableEntity) {
   let exif = {};
   try {
     if (entity.exifJson) {
@@ -54,7 +56,9 @@ function entityToFootprint(entity: FootprintTableEntity) {
     },
     exif,
     caption: entity.caption || '',
-    locationName: entity.locationName || undefined
+    locationName: entity.locationName || undefined,
+    isDeleted: Boolean(entity.isDeleted),
+    deletedAt: entity.deletedAt || null
   };
 }
 
@@ -104,7 +108,74 @@ app.http('generateUploadSas', {
   }
 });
 
-// 2. GET / POST / DELETE /api/footprints — List all, Upsert batch/single, or Clear all
+// 2. GET /api/footprints/deleted — List all soft-deleted footprints
+//    DELETE /api/footprints/deleted — Purge all soft-deleted footprints ("Empty Trash")
+app.http('deletedFootprintsCollection', {
+  methods: ['GET', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'footprints/deleted',
+  handler: async (req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> => {
+    if (!isStorageConfigured()) {
+      return {
+        status: 503,
+        jsonBody: { error: 'Azure Storage is not configured.' }
+      };
+    }
+
+    try {
+      const { containerClient, tableClient } = await getStorageClients();
+
+      if (req.method === 'GET') {
+        const deletedFootprints: any[] = [];
+        const entities = tableClient.listEntities<FootprintTableEntity>({
+          queryOptions: { filter: `PartitionKey eq '${PARTITION_KEY}'` }
+        });
+
+        for await (const entity of entities) {
+          if (entity.isDeleted) {
+            deletedFootprints.push(entityToFootprint(entity));
+          }
+        }
+
+        return {
+          status: 200,
+          jsonBody: { footprints: deletedFootprints }
+        };
+      }
+
+      if (req.method === 'DELETE') {
+        let purgedCount = 0;
+        const entities = tableClient.listEntities<FootprintTableEntity>({
+          queryOptions: { filter: `PartitionKey eq '${PARTITION_KEY}'` }
+        });
+
+        for await (const entity of entities) {
+          if (entity.isDeleted) {
+            if (entity.blobName) {
+              await containerClient.deleteBlob(entity.blobName).catch(() => {});
+            }
+            await tableClient.deleteEntity(PARTITION_KEY, entity.rowKey).catch(() => {});
+            purgedCount++;
+          }
+        }
+
+        return {
+          status: 200,
+          jsonBody: { purgedCount }
+        };
+      }
+
+      return { status: 405, jsonBody: { error: 'Method not allowed' } };
+    } catch (error: any) {
+      return {
+        status: 500,
+        jsonBody: { error: error?.message || 'Failed to process deleted footprints.' }
+      };
+    }
+  }
+});
+
+// 3. GET / POST / DELETE /api/footprints — Active footprint collection
 app.http('footprintsCollection', {
   methods: ['GET', 'POST', 'DELETE'],
   authLevel: 'anonymous',
@@ -127,7 +198,10 @@ app.http('footprintsCollection', {
         });
 
         for await (const entity of entities) {
-          footprints.push(entityToFootprint(entity));
+          // Filter out soft-deleted records so only active photos appear on map/gallery
+          if (!entity.isDeleted) {
+            footprints.push(entityToFootprint(entity));
+          }
         }
 
         return {
@@ -147,7 +221,6 @@ app.http('footprintsCollection', {
           rowKey: fp.id,
           filename: fp.filename || 'photo.jpg',
           blobName: fp.blobName || undefined,
-          // Only store inline dataUrl if no blobName was uploaded (e.g. lightweight SVG sample pins)
           inlineDataUrl: fp.blobName ? undefined : fp.dataUrl,
           size: Number(fp.size || 0),
           mimeType: fp.mimeType || 'image/jpeg',
@@ -157,7 +230,9 @@ app.http('footprintsCollection', {
           longitude: Number(fp.coordinates?.longitude || 0),
           exifJson: JSON.stringify(fp.exif || {}),
           caption: fp.caption || '',
-          locationName: fp.locationName || ''
+          locationName: fp.locationName || '',
+          isDeleted: false,
+          deletedAt: ''
         };
 
         await tableClient.upsertEntity(entity, 'Replace');
@@ -168,15 +243,24 @@ app.http('footprintsCollection', {
       }
 
       if (req.method === 'DELETE') {
+        // Soft delete all active footprints
+        const nowIso = new Date().toISOString();
         const entities = tableClient.listEntities<FootprintTableEntity>({
           queryOptions: { filter: `PartitionKey eq '${PARTITION_KEY}'` }
         });
 
         for await (const entity of entities) {
-          if (entity.blobName) {
-            await containerClient.deleteBlob(entity.blobName).catch(() => {});
+          if (!entity.isDeleted) {
+            await tableClient.updateEntity(
+              {
+                partitionKey: PARTITION_KEY,
+                rowKey: entity.rowKey,
+                isDeleted: true,
+                deletedAt: nowIso
+              },
+              'Merge'
+            );
           }
-          await tableClient.deleteEntity(PARTITION_KEY, entity.rowKey).catch(() => {});
         }
 
         return { status: 200, jsonBody: { cleared: true } };
@@ -192,7 +276,93 @@ app.http('footprintsCollection', {
   }
 });
 
-// 3. PATCH / DELETE /api/footprints/{id} — Update caption/coordinates or delete single pin + blob
+// 4. POST /api/footprints/{id}/restore — Restore a soft-deleted footprint
+app.http('restoreFootprintItem', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'footprints/{id}/restore',
+  handler: async (req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> => {
+    if (!isStorageConfigured()) {
+      return {
+        status: 503,
+        jsonBody: { error: 'Azure Storage is not configured.' }
+      };
+    }
+
+    const id = req.params.id;
+    if (!id) {
+      return { status: 400, jsonBody: { error: 'Missing footprint id parameter.' } };
+    }
+
+    try {
+      const { tableClient } = await getStorageClients();
+      const existing = await tableClient.getEntity<FootprintTableEntity>(PARTITION_KEY, id);
+
+      if (!existing) {
+        return { status: 404, jsonBody: { error: 'Footprint not found.' } };
+      }
+
+      const updated = {
+        ...existing,
+        isDeleted: false,
+        deletedAt: ''
+      };
+
+      await tableClient.updateEntity(updated, 'Replace');
+      return {
+        status: 200,
+        jsonBody: { footprint: entityToFootprint(updated) }
+      };
+    } catch (error: any) {
+      return {
+        status: 500,
+        jsonBody: { error: error?.message || 'Failed to restore footprint.' }
+      };
+    }
+  }
+});
+
+// 5. DELETE /api/footprints/{id}/permanent — Hard delete single footprint (Blob + Table)
+app.http('permanentDeleteFootprintItem', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'footprints/{id}/permanent',
+  handler: async (req: HttpRequest, _ctx: InvocationContext): Promise<HttpResponseInit> => {
+    if (!isStorageConfigured()) {
+      return {
+        status: 503,
+        jsonBody: { error: 'Azure Storage is not configured.' }
+      };
+    }
+
+    const id = req.params.id;
+    if (!id) {
+      return { status: 400, jsonBody: { error: 'Missing footprint id parameter.' } };
+    }
+
+    try {
+      const { containerClient, tableClient } = await getStorageClients();
+      try {
+        const existing = await tableClient.getEntity<FootprintTableEntity>(PARTITION_KEY, id);
+        if (existing?.blobName) {
+          await containerClient.deleteBlob(existing.blobName).catch(() => {});
+        }
+      } catch {
+        // Entity may already be absent
+      }
+
+      await tableClient.deleteEntity(PARTITION_KEY, id).catch(() => {});
+      return { status: 200, jsonBody: { permanentlyDeleted: true } };
+    } catch (error: any) {
+      return {
+        status: 500,
+        jsonBody: { error: error?.message || 'Failed to permanently delete footprint.' }
+      };
+    }
+  }
+});
+
+// 6. PATCH / DELETE /api/footprints/{id} — Update or Soft-Delete single pin
 app.http('footprintItem', {
   methods: ['PATCH', 'DELETE'],
   authLevel: 'anonymous',
@@ -211,7 +381,7 @@ app.http('footprintItem', {
     }
 
     try {
-      const { containerClient, tableClient } = await getStorageClients();
+      const { tableClient } = await getStorageClients();
 
       if (req.method === 'PATCH') {
         const patch = (await req.json()) as {
@@ -241,16 +411,17 @@ app.http('footprintItem', {
       }
 
       if (req.method === 'DELETE') {
-        try {
-          const existing = await tableClient.getEntity<FootprintTableEntity>(PARTITION_KEY, id);
-          if (existing?.blobName) {
-            await containerClient.deleteBlob(existing.blobName).catch(() => {});
-          }
-        } catch {
-          // Entity may not exist yet
-        }
-        await tableClient.deleteEntity(PARTITION_KEY, id).catch(() => {});
-        return { status: 200, jsonBody: { deleted: true } };
+        // Soft delete: flag record with isDeleted = true and deletedAt timestamp
+        // DO NOT delete the blob from Blob Storage yet!
+        const updateEntity = {
+          partitionKey: PARTITION_KEY,
+          rowKey: id,
+          isDeleted: true,
+          deletedAt: new Date().toISOString()
+        };
+
+        await tableClient.updateEntity(updateEntity, 'Merge');
+        return { status: 200, jsonBody: { softDeleted: true, id } };
       }
 
       return { status: 405, jsonBody: { error: 'Method not allowed' } };
@@ -262,4 +433,3 @@ app.http('footprintItem', {
     }
   }
 });
-

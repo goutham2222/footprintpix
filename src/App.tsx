@@ -2,19 +2,21 @@ import { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Trash,
-  Maximize2
+  Maximize2,
+  History
 } from 'lucide-react';
 import { MapView } from './components/Map/MapView';
 import { InspectionDrawer } from './components/Inspection/InspectionDrawer';
 import { UploadDropzone } from './components/Upload/UploadDropzone';
 import { ManualLocationModal } from './components/Upload/ManualLocationModal';
 import { PhotoStrip } from './components/Gallery/PhotoStrip';
+import { RecentlyDeletedModal } from './components/Gallery/RecentlyDeletedModal';
 import { PhotoFootprint, GeoCoordinates } from './types/footprint';
 import { 
   loadPersistedFootprints, 
   savePersistedFootprints, 
   updatePersistedFootprint,
-  deletePersistedFootprint,
+  softDeleteFootprint,
   clearAllPersistedFootprints,
   isCloudStorageActive
 } from './utils/storage';
@@ -39,6 +41,7 @@ export function App() {
   const [selectionTrigger, setSelectionTrigger] = useState(0);
   const [fitBoundsTrigger, setFitBoundsTrigger] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudMode, setIsCloudMode] = useState(false);
 
@@ -181,13 +184,21 @@ export function App() {
     updatePersistedFootprint(id, { caption: newCaption });
   };
 
-  const handleDeleteFootprint = (id: string) => {
+  const handleDeleteFootprint = async (id: string) => {
+    const targetFp = footprints.find((fp) => fp.id === id);
     setFootprints((prev) => prev.filter((fp) => fp.id !== id));
-    deletePersistedFootprint(id);
+    await softDeleteFootprint(id, targetFp);
     if (selectedFootprintId === id) {
       setSelectedFootprintId(null);
       setIsDrawerOpen(false);
     }
+  };
+
+  const handleFootprintRestored = (restored: PhotoFootprint) => {
+    setFootprints((prev) => sortFootprintsChronologically([...prev, restored]));
+    setSelectedFootprintId(restored.id);
+    setIsDrawerOpen(true);
+    setSelectionTrigger((prev) => prev + 1);
   };
 
   const handleRelocate = (fp: PhotoFootprint) => {
@@ -279,24 +290,34 @@ export function App() {
           )}
 
           {footprints.length > 0 && (
-            <>
-              <button
-                onClick={handleFitAllPins}
-                className="px-3 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-1.5 shadow-xl transition-all"
-                title="Zoom to fit all journey pins"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-orange-400" />
-                <span>Fit All Pins</span>
-              </button>
+            <button
+              onClick={handleFitAllPins}
+              className="px-3 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-300 hover:text-white text-xs font-medium flex items-center space-x-1.5 shadow-xl transition-all"
+              title="Zoom to fit all journey pins"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-orange-400" />
+              <span>Fit All Pins</span>
+            </button>
+          )}
 
-              <button
-                onClick={handleClearAll}
-                className="p-2 rounded-xl bg-stone-900/90 hover:bg-rose-950/50 backdrop-blur-xl border border-stone-800 hover:border-rose-900/50 text-stone-400 hover:text-rose-400 text-xs shadow-xl transition-all"
-                title="Clear all pins"
-              >
-                <Trash className="w-3.5 h-3.5" />
-              </button>
-            </>
+          {/* Recently Deleted / Trash recovery button */}
+          <button
+            onClick={() => setIsTrashModalOpen(true)}
+            className="px-3 py-2 rounded-xl bg-stone-900/90 hover:bg-stone-800 backdrop-blur-xl border border-stone-800 text-stone-400 hover:text-stone-200 text-xs font-medium flex items-center space-x-1.5 shadow-xl transition-all"
+            title="View recently deleted photos"
+          >
+            <History className="w-3.5 h-3.5 text-stone-400" />
+            <span>Recently Deleted</span>
+          </button>
+
+          {footprints.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="p-2 rounded-xl bg-stone-900/90 hover:bg-rose-950/50 backdrop-blur-xl border border-stone-800 hover:border-rose-900/50 text-stone-400 hover:text-rose-400 text-xs shadow-xl transition-all"
+              title="Clear all active pins"
+            >
+              <Trash className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </header>
@@ -350,6 +371,13 @@ export function App() {
         onStartMapPick={handleStartMapPick}
         onSkip={handleSkipPendingPhoto}
         onCancelAll={handleCancelAllPending}
+      />
+
+      {/* Recently Deleted Recovery Modal */}
+      <RecentlyDeletedModal
+        isOpen={isTrashModalOpen}
+        onClose={() => setIsTrashModalOpen(false)}
+        onFootprintRestored={handleFootprintRestored}
       />
     </div>
   );
