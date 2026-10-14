@@ -5,7 +5,7 @@ import {
   Maximize2,
   History
 } from 'lucide-react';
-import { MapView } from './components/Map/MapView';
+import { MapView, ReframeDeleteEvent } from './components/Map/MapView';
 import { InspectionDrawer } from './components/Inspection/InspectionDrawer';
 import { UploadDropzone } from './components/Upload/UploadDropzone';
 import { ManualLocationModal } from './components/Upload/ManualLocationModal';
@@ -40,6 +40,8 @@ export function App() {
   const [selectedFootprintId, setSelectedFootprintId] = useState<string | null>(null);
   const [selectionTrigger, setSelectionTrigger] = useState(0);
   const [fitBoundsTrigger, setFitBoundsTrigger] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reframeOnDelete, setReframeOnDelete] = useState<ReframeDeleteEvent | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -186,12 +188,32 @@ export function App() {
 
   const handleDeleteFootprint = async (id: string) => {
     const targetFp = footprints.find((fp) => fp.id === id);
-    setFootprints((prev) => prev.filter((fp) => fp.id !== id));
-    await softDeleteFootprint(id, targetFp);
+    const remaining = footprints.filter((fp) => fp.id !== id);
+
+    // 1. Immediately deselect active photo and smoothly close the inspection drawer
     if (selectedFootprintId === id) {
       setSelectedFootprintId(null);
-      setIsDrawerOpen(false);
     }
+    setIsDrawerOpen(false);
+
+    // 2. Trigger adaptive camera reframing on remaining pins
+    setReframeOnDelete({
+      trigger: Date.now(),
+      deletedCoords: targetFp?.coordinates,
+      remainingPins: remaining
+    });
+
+    // 3. Mark photo as deleting so PhotoStrip smoothly transitions it out
+    setDeletingId(id);
+
+    // 4. Soft delete in storage
+    await softDeleteFootprint(id, targetFp);
+
+    // 5. Cleanly remove from footprints state after the 320ms transition completes
+    setTimeout(() => {
+      setFootprints((prev) => prev.filter((fp) => fp.id !== id));
+      setDeletingId((prev) => (prev === id ? null : prev));
+    }, 320);
   };
 
   const handleFootprintRestored = (restored: PhotoFootprint) => {
@@ -218,10 +240,14 @@ export function App() {
 
   const handleClearAll = async () => {
     if (confirm('Clear all journey footprints from storage?')) {
-      await clearAllPersistedFootprints();
-      setFootprints([]);
       setSelectedFootprintId(null);
       setIsDrawerOpen(false);
+      setReframeOnDelete({
+        trigger: Date.now(),
+        remainingPins: []
+      });
+      await clearAllPersistedFootprints();
+      setFootprints([]);
     }
   };
 
@@ -334,6 +360,8 @@ export function App() {
           selectedFootprintId={selectedFootprintId}
           selectionTrigger={selectionTrigger}
           fitBoundsTrigger={fitBoundsTrigger}
+          reframeOnDelete={reframeOnDelete}
+          deletingId={deletingId}
           isDrawerOpen={isDrawerOpen}
           onSelectFootprint={handleSelectFootprint}
           onDismissSelection={handleCloseDrawer}
@@ -346,6 +374,7 @@ export function App() {
       <PhotoStrip
         footprints={footprints}
         selectedFootprintId={selectedFootprintId}
+        deletingId={deletingId}
         onSelect={handleSelectFootprint}
       />
 

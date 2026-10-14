@@ -44,12 +44,21 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
   const [isSavedNotice, setIsSavedNotice] = useState(false);
   const [isCopiedCoords, setIsCopiedCoords] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [activeFootprint, setActiveFootprint] = useState<PhotoFootprint | null>(footprint);
 
   useEffect(() => {
     if (footprint) {
-      setCaption(footprint.caption || '');
+      setActiveFootprint(footprint);
     }
   }, [footprint]);
+
+  const currentFootprint = footprint || activeFootprint;
+
+  useEffect(() => {
+    if (currentFootprint) {
+      setCaption(currentFootprint.caption || '');
+    }
+  }, [currentFootprint]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -86,16 +95,16 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isLightboxOpen, totalCount, onClose, onPrev, onNext]);
 
-  if (!isOpen || !footprint) return null;
+  if (!currentFootprint) return null;
 
   const handleSaveCaption = () => {
-    onUpdateCaption(footprint.id, caption);
+    onUpdateCaption(currentFootprint.id, caption);
     setIsSavedNotice(true);
     setTimeout(() => setIsSavedNotice(false), 2000);
   };
 
   const handleCopyCoords = async () => {
-    const coordString = `${footprint.coordinates.latitude.toFixed(4)}, ${footprint.coordinates.longitude.toFixed(4)}`;
+    const coordString = `${currentFootprint.coordinates.latitude.toFixed(4)}, ${currentFootprint.coordinates.longitude.toFixed(4)}`;
     try {
       await navigator.clipboard.writeText(coordString);
       setIsCopiedCoords(true);
@@ -105,8 +114,8 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
     }
   };
 
-  const formattedDate = footprint.exif.dateTimeOriginal
-    ? new Date(footprint.exif.dateTimeOriginal).toLocaleDateString(undefined, {
+  const formattedDate = currentFootprint.exif.dateTimeOriginal
+    ? new Date(currentFootprint.exif.dateTimeOriginal).toLocaleDateString(undefined, {
         weekday: 'short',
         year: 'numeric',
         month: 'short',
@@ -114,20 +123,22 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
         hour: '2-digit',
         minute: '2-digit'
       })
-    : new Date(footprint.uploadedAt).toLocaleDateString(undefined, {
+    : new Date(currentFootprint.uploadedAt).toLocaleDateString(undefined, {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       });
 
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${footprint.coordinates.latitude},${footprint.coordinates.longitude}`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${currentFootprint.coordinates.latitude},${currentFootprint.coordinates.longitude}`;
 
   return (
     <>
       <div
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900/95 backdrop-blur-xl border-l border-stone-800 text-stone-200 shadow-2xl flex flex-col transition-all duration-300 ease-out"
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900/95 backdrop-blur-xl border-l border-stone-800 text-stone-200 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+          isOpen && footprint ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}
       >
         {/* Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800/80 bg-stone-900/40">
@@ -180,12 +191,12 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
             className="relative group cursor-zoom-in rounded-2xl overflow-hidden bg-stone-950/80 border border-stone-800/80 hover:border-stone-700 shadow-2xl flex items-center justify-center aspect-[4/3] transition-colors"
           >
             <img
-              src={footprint.dataUrl}
-              alt={footprint.filename}
+              src={currentFootprint.dataUrl}
+              alt={currentFootprint.filename}
               className="w-full h-full object-contain p-1 rounded-2xl"
             />
             <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-[10px] bg-black/60 backdrop-blur-md text-stone-300 font-mono border border-white/10">
-              {(footprint.size / (1024 * 1024)).toFixed(2)} MB
+              {(currentFootprint.size / (1024 * 1024)).toFixed(2)} MB
             </div>
             <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full text-[10px] bg-black/70 backdrop-blur-md text-stone-200 flex items-center space-x-1 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
               <Maximize2 className="w-3 h-3 text-orange-400" />
@@ -228,7 +239,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
               </span>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => onRelocate(footprint)}
+                  onClick={() => onRelocate(currentFootprint)}
                   className="text-orange-400 hover:text-orange-300 underline text-xs transition-colors"
                 >
                   Reposition
@@ -246,18 +257,18 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
             </div>
 
             {/* Place name if available */}
-            {footprint.locationName && (
+            {currentFootprint.locationName && (
               <div className="text-xs font-medium text-stone-300 truncate">
-                {footprint.locationName}
+                {currentFootprint.locationName}
               </div>
             )}
 
             {/* Rounded 4-decimal coordinates with copy button */}
             <div className="flex items-center justify-between bg-stone-900/60 p-2.5 rounded-xl border border-stone-800/60 font-mono text-sm">
               <div className="flex items-center space-x-3 text-stone-200">
-                <span>{footprint.coordinates.latitude.toFixed(4)}° N</span>
+                <span>{currentFootprint.coordinates.latitude.toFixed(4)}° N</span>
                 <span className="text-stone-600">|</span>
-                <span>{footprint.coordinates.longitude.toFixed(4)}° E</span>
+                <span>{currentFootprint.coordinates.longitude.toFixed(4)}° E</span>
               </div>
 
               <button
@@ -276,7 +287,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
               </button>
             </div>
 
-            {!footprint.hasGps && (
+            {!currentFootprint.hasGps && (
               <div className="text-[11px] text-amber-400/90 bg-amber-950/30 border border-amber-900/40 px-2.5 py-1.5 rounded-lg">
                 ⚠️ Manually pinned on map (No original GPS in EXIF).
               </div>
@@ -299,7 +310,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
         {/* Footer Actions */}
         <div className="p-4 border-t border-stone-800/80 bg-stone-900/70 flex items-center justify-between">
           <button
-            onClick={() => onDeleteFootprint(footprint.id)}
+            onClick={() => onDeleteFootprint(currentFootprint.id)}
             className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 px-3 py-2 rounded-lg transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -316,7 +327,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
       </div>
 
       {/* Full-Screen Photo Lightbox Modal */}
-      {isLightboxOpen && (
+      {isOpen && isLightboxOpen && (
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -372,21 +383,21 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({
 
           {/* High-Resolution Image */}
           <img
-            src={footprint.dataUrl}
-            alt={footprint.caption || footprint.locationName || 'Journey footprint'}
+            src={currentFootprint.dataUrl}
+            alt={currentFootprint.caption || currentFootprint.locationName || 'Journey footprint'}
             onClick={(e) => e.stopPropagation()}
             className="max-w-full max-h-[82vh] object-contain rounded-xl shadow-2xl cursor-default"
           />
 
           {/* Caption / Date Subtitle under Lightbox Photo */}
-          {(footprint.caption || footprint.locationName || formattedDate) && (
+          {(currentFootprint.caption || currentFootprint.locationName || formattedDate) && (
             <div
               onClick={(e) => e.stopPropagation()}
               className="mt-4 text-center max-w-xl px-4 cursor-default"
             >
-              {(footprint.caption || footprint.locationName) && (
+              {(currentFootprint.caption || currentFootprint.locationName) && (
                 <p className="text-sm sm:text-base font-medium text-stone-100">
-                  {footprint.caption || footprint.locationName}
+                  {currentFootprint.caption || currentFootprint.locationName}
                 </p>
               )}
               <p className="text-xs text-stone-400 mt-1">{formattedDate}</p>

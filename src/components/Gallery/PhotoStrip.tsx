@@ -5,18 +5,22 @@ import { PhotoFootprint } from '../../types/footprint';
 interface PhotoStripProps {
   footprints: PhotoFootprint[];
   selectedFootprintId: string | null;
+  deletingId?: string | null;
   onSelect: (id: string) => void;
 }
 
 export const PhotoStrip: React.FC<PhotoStripProps> = ({
   footprints,
   selectedFootprintId,
+  deletingId,
   onSelect
 }) => {
   const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!selectedFootprintId) return;
+    // Only scroll into view if selecting an active, non-deleted photo
+    if (!selectedFootprintId || selectedFootprintId === deletingId) return;
     const activeEl = itemRefs.current[selectedFootprintId];
     if (activeEl) {
       activeEl.scrollIntoView({
@@ -25,7 +29,7 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
         inline: 'center'
       });
     }
-  }, [selectedFootprintId]);
+  }, [selectedFootprintId, deletingId]);
 
   if (footprints.length === 0) return null;
 
@@ -33,13 +37,17 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
     <div
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
-      className={`absolute bottom-6 left-6 z-20 pointer-events-none transition-all duration-300 ${
+      className={`absolute bottom-6 left-6 z-20 pointer-events-none transition-all duration-300 ease-out ${
         selectedFootprintId ? 'right-20 sm:right-28 md:right-[468px]' : 'right-20 sm:right-28'
       }`}
     >
-      <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-none pointer-events-auto p-1.5 max-w-full scroll-smooth">
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-none pointer-events-auto p-1.5 max-w-full scroll-smooth"
+      >
         {footprints.map((fp) => {
           const isSelected = fp.id === selectedFootprintId;
+          const isDeleting = fp.id === deletingId;
           const dateStr = fp.exif.dateTimeOriginal
             ? new Date(fp.exif.dateTimeOriginal).toLocaleDateString(undefined, {
                 month: 'short',
@@ -55,12 +63,17 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                onSelect(fp.id);
+                if (!isDeleting) onSelect(fp.id);
               }}
-              className={`group relative shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all duration-300 text-left bg-stone-900 shadow-xl ${
-                isSelected
+              disabled={isDeleting}
+              className={`group relative shrink-0 h-24 rounded-2xl overflow-hidden transition-all duration-300 ease-out text-left bg-stone-900 shadow-xl ${
+                isDeleting
+                  ? 'w-0 opacity-0 scale-75 !p-0 !border-0 pointer-events-none'
+                  : 'w-24 border-2 hover:scale-105'
+              } ${
+                isSelected && !isDeleting
                   ? 'border-orange-500 ring-4 ring-orange-500/30 scale-105'
-                  : 'border-stone-800/80 hover:border-stone-600 hover:scale-105'
+                  : 'border-stone-800/80 hover:border-stone-600'
               }`}
             >
               <img
@@ -89,7 +102,7 @@ export const PhotoStrip: React.FC<PhotoStripProps> = ({
                 )}
               </div>
 
-              {isSelected && (
+              {isSelected && !isDeleting && (
                 <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-white/50" />
               )}
             </button>

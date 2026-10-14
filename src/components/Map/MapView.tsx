@@ -13,11 +13,33 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+export interface ReframeDeleteEvent {
+  trigger: number;
+  deletedCoords?: GeoCoordinates;
+  remainingPins: PhotoFootprint[];
+}
+
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth radius in kilometers
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 interface MapViewProps {
   footprints: PhotoFootprint[];
   selectedFootprintId: string | null;
   selectionTrigger?: number;
   fitBoundsTrigger?: number;
+  reframeOnDelete?: ReframeDeleteEvent | null;
+  deletingId?: string | null;
   isDrawerOpen?: boolean;
   onSelectFootprint: (id: string) => void;
   onDismissSelection?: () => void;
@@ -30,6 +52,8 @@ export const MapView: React.FC<MapViewProps> = ({
   selectedFootprintId,
   selectionTrigger = 0,
   fitBoundsTrigger = 0,
+  reframeOnDelete,
+  deletingId,
   isDrawerOpen = false,
   onSelectFootprint,
   onDismissSelection,
@@ -112,7 +136,9 @@ export const MapView: React.FC<MapViewProps> = ({
 
     markersGroup.clearLayers();
 
-    footprints.forEach((fp) => {
+    const activeList = deletingId ? footprints.filter((fp) => fp.id !== deletingId) : footprints;
+
+    activeList.forEach((fp) => {
       const isSelected = fp.id === selectedFootprintId;
       const icon = createFootprintIcon(isSelected);
 
@@ -234,6 +260,84 @@ export const MapView: React.FC<MapViewProps> = ({
       easeLinearity: 0.25
     });
   }, [fitBoundsTrigger]);
+
+  // Adaptive Camera Reframing on photo deletion or removal
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!reframeOnDelete || !map) return;
+
+    const { deletedCoords, remainingPins } = reframeOnDelete;
+
+    // Scenario B (No pins remain): smoothly zoom out and reset camera to default world map
+    if (remainingPins.length === 0) {
+      map.flyTo([20, 0], 2.5, {
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
+      return;
+    }
+
+    // Scenario A1: Exactly 1 pin remains — smoothly fly to center on it
+    if (remainingPins.length === 1) {
+      const single = remainingPins[0];
+      map.flyTo([single.coordinates.latitude, single.coordinates.longitude], 13, {
+        duration: 1.2,
+        easeLinearity: 0.25
+      });
+      return;
+    }
+
+    // Scenario A2: Multiple remaining pins — prioritize immediate vicinity
+    const centerLat = deletedCoords ? deletedCoords.latitude : map.getCenter().lat;
+    const centerLng = deletedCoords ? deletedCoords.longitude : map.getCenter().lng;
+
+    // Check immediate vicinity (within 75 km city / local cluster)
+    const immediateVicinityPins = remainingPins.filter(
+      (fp) => getDistanceKm(centerLat, centerLng, fp.coordinates.latitude, fp.coordinates.longitude) <= 75
+    );
+
+    // Check visible map bounds (with 40% margin)
+    const paddedBounds = map.getBounds().pad(0.4);
+    const inViewportPins = remainingPins.filter((fp) =>
+      paddedBounds.contains([fp.coordinates.latitude, fp.coordinates.longitude])
+    );
+
+    let pinsToFrame: PhotoFootprint[];
+
+    if (immediateVicinityPins.length >= 2) {
+      pinsToFrame = immediateVicinityPins;
+    } else if (inViewportPins.length >= 2) {
+      pinsToFrame = inViewportPins;
+    } else if (immediateVicinityPins.length === 1) {
+      const single = immediateVicinityPins[0];
+      map.flyTo([single.coordinates.latitude, single.coordinates.longitude], 14, {
+        duration: 1.2,
+        easeLinearity: 0.25
+      });
+      return;
+    } else if (inViewportPins.length === 1) {
+      const single = inViewportPins[0];
+      map.flyTo([single.coordinates.latitude, single.coordinates.longitude], 14, {
+        duration: 1.2,
+        easeLinearity: 0.25
+      });
+      return;
+    } else {
+      pinsToFrame = remainingPins;
+    }
+
+    const bounds = L.latLngBounds(
+      pinsToFrame.map((fp) => [fp.coordinates.latitude, fp.coordinates.longitude] as [number, number])
+    );
+
+    map.flyToBounds(bounds, {
+      paddingTopLeft: [70, 70],
+      paddingBottomRight: [70, 140],
+      maxZoom: 15,
+      duration: 1.3,
+      easeLinearity: 0.25
+    });
+  }, [reframeOnDelete]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
