@@ -164,8 +164,8 @@ All resources reside in a single Resource Group (`rg-footprintpix-prod`) for uni
 # 1. Log in to Azure
 az login
 
-# 2. Create a Resource Group (e.g., East US 2)
-az group create --name rg-footprintpix-prod --location eastus2
+# 2. Create a Resource Group (e.g., Central US)
+az group create --name rg-footprintpix-prod --location centralus
 
 # 3. Create General Purpose v2 Storage Account (LRS)
 # Note: Storage account names must be globally unique across all Azure accounts (3-24 lowercase alphanumeric).
@@ -173,7 +173,7 @@ az group create --name rg-footprintpix-prod --location eastus2
 az storage account create \
   --name stfootprintpixprod \
   --resource-group rg-footprintpix-prod \
-  --location eastus2 \
+  --location centralus \
   --sku Standard_LRS \
   --kind StorageV2 \
   --min-tls-version TLS1_2 \
@@ -209,7 +209,7 @@ az storage account show-connection-string \
 az staticwebapp create \
   --name swa-footprintpix-prod \
   --resource-group rg-footprintpix-prod \
-  --location eastus2 \
+  --location centralus \
   --sku Free
 
 # Set Storage Connection String in SWA Application Settings
