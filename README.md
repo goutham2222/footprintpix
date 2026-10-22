@@ -2,6 +2,10 @@
 
 > Retrace your personal journeys on an interactive, high-contrast world map with zero-bloat serverless architecture.
 
+<p align="center">
+  <img src="docs/images/hero-map-overview.png" alt="FootprintPix Interactive Map Canvas" width="100%" />
+</p>
+
 FootprintPix is an interactive, privacy-conscious travel map web application. Users can upload travel snapshots, extract embedded GPS EXIF metadata client-side, and visualize their journey footprints across an interactive global map.
 
 Built with a **hybrid architecture**:
@@ -48,11 +52,25 @@ flowchart LR
 - **Adaptive Camera Reframing:** Smooth Leaflet `flyToBounds` camera transitions when adding or deleting pins, automatically reframing the remaining journey or resetting to a world overview.
 - **Client-Side EXIF & GPS Extraction:** Fast, private metadata extraction using `exifr` supporting JPEG, PNG, WebP, AVIF, and iPhone HEIC/HEIF photos.
 - **Manual Pinning Fallback:** Interactive map picker allows users to easily drop a pin for snapshots lacking camera GPS data.
+
+  <p align="center">
+    <img src="docs/images/manual-location-picker.png" alt="Manual Location Picker" width="850" />
+  </p>
+
 - **Inspection Drawer:** Slide-out panel to view full-resolution photos, optical specs (focal length, aperture, ISO, camera model), coordinates with Google Maps links, and editable travel reflection notes.
+
+  <p align="center">
+    <img src="docs/images/inspection-drawer.png" alt="Journey Inspection Drawer" width="850" />
+  </p>
+
 - **Soft-Delete Architecture & Trash Recovery:**
   - Deleting a photo flags `isDeleted = true` with a timestamp rather than permanently destroying the photo.
   - **"Recently Deleted" Trash UI:** Modal dialog to browse deleted photos with options to **Restore** them back to the active map or **Permanently Delete** them.
   - **Nightly Cleanup Cron:** Serverless Azure Timer Function (`0 0 2 * * *`) automatically purges soft-deleted records older than 30 days.
+
+  <p align="center">
+    <img src="docs/images/recently-deleted.png" alt="Recently Deleted Trash Recovery" width="650" />
+  </p>
 - **Mobile Responsive Design:** Dynamic viewport sizing (`h-[100dvh]`), iOS/Android safe-area padding (`viewport-fit=cover`), and unified compact header layout.
 - **Direct-to-Blob SAS Uploads:** High-resolution photos stream directly from the browser to Azure Blob Storage using short-lived (5-minute) write-only SAS tokens, bypassing server memory limits.
 - **Zero Monolithic Bloat:** Vite manual chunk splitting (`vendor-react`, `vendor-leaflet`, `vendor-exifr`) with client-side base64 memory disposal after upload.
